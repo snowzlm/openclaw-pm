@@ -129,19 +129,65 @@ npx @1va7/openclaw-pm
 
 **为什么重要**：Session 崩溃时能从 git 历史恢复。
 
-## 外挂系统（可选）
+## 健康检查脚本（V2 新增）
 
-V2 还包含一套外部健康检查系统，需要单独安装：
+V2 包含一套完整的外部健康检查系统，位于 `scripts/` 目录：
 
-- `gateway-health-check.sh` — 自动检查和恢复 Gateway
-- `check-unanswered.sh` — 检测未回复的消息
-- `heartbeat-check.sh` — 统一执行 HEARTBEAT.md 检查
-- `check-missed-crons.sh` — 检查 cron 任务执行状态
-- `quick-diagnose.sh` — 一键诊断常见问题
-- `morning-briefing.sh` — 晨间简报
-- `daily-stats.sh` — 每日活动统计
+### 核心脚本
 
-详细安装说明请参考 `config/V2-升级指南.md`。
+- **gateway-health-check.sh** — 自动检查和恢复 Gateway
+  - 检测多个 Gateway 进程
+  - 清理过期的 session lock
+  - 检测崩溃并自动重启
+  - 检测消息队列卡住
+  - 检测飞书 WebSocket 断连
+
+- **check-unanswered.sh** — 检测未回复的消息
+  - 扫描所有 agent 的 session
+  - 检查最后一条消息是否未回复
+  - 支持 JSON 输出
+
+- **heartbeat-check.sh** — 统一执行 HEARTBEAT.md 检查
+  - Context Health 检查
+  - 进行中任务检查
+  - Cron 任务检查
+
+- **check-missed-crons.sh** — 检查 cron 任务执行状态
+  - 查询 cron API
+  - 检查关键任务是否执行
+  - 支持自动补执行
+
+- **quick-diagnose.sh** — 一键诊断常见问题
+  - Gateway 进程状态
+  - Session lock 文件
+  - 飞书 WebSocket 连接
+  - 消息队列状态
+  - LLM 错误
+
+- **morning-briefing.sh** — 晨间简报
+  - 系统健康状态
+  - 昨夜活动摘要
+  - Cron 任务执行状态
+  - 待办事项检查
+
+- **daily-stats.sh** — 每日活动统计
+  - 消息收发统计
+  - 按小时分布的消息量
+  - 错误分析
+  - Gateway 状态
+
+### 安装脚本
+
+```bash
+# 复制脚本到 workspace
+cp scripts/*.sh ~/.openclaw/workspace/scripts/
+chmod +x ~/.openclaw/workspace/scripts/*.sh
+
+# 验证安装
+~/.openclaw/workspace/scripts/quick-diagnose.sh
+```
+
+详细使用说明请参考 `scripts/README.md`。
 
 ## 关于
 
