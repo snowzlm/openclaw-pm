@@ -1,3 +1,37 @@
+# OpenClaw PM 变更日志
+
+## [3.1.0] - 2026-04-15
+
+### 新增
+- **健康检查历史追踪** (`health-history.sh`)
+  - 记录每次健康检查结果（Gateway状态、Lock数量、错误数等）
+  - 支持查询历史记录（`list`）
+  - 支持统计分析（`stats`）：健康评分、平均错误数等
+  - 支持自动清理旧记录（`clean`）
+  - 支持 JSON 格式输出
+  - 自动集成到 `gateway-health-check.sh`
+
+### 修复
+- **thinking-only session 清理逻辑改进**
+  - 改为标记而非删除消息
+  - 添加 `_incomplete` 和 `_marked_at` 字段
+  - 保留原始消息数据，避免数据丢失
+  - 如果 jq 不可用，回退到删除方式
+
+- **自动恢复功能改进** (`check-unanswered.sh --recover`)
+  - 优先尝试使用 `openclaw sessions send` 命令
+  - 如果不可用，回退到 wake 通知
+  - 显示详细的恢复状态（成功/失败）
+  - 改进错误处理和用户反馈
+
+### 文档
+- 更新 README.md 添加 `health-history.sh` 使用说明
+- 更新 CHANGELOG-v3.md
+
+---
+
+## [3.0.0] - 2026-04-15
+
 # OpenClaw PM v3.0.0 优化版本
 
 ## 重大更新
