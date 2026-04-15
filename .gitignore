@@ -1,0 +1,35 @@
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local config (user-specific)
+scripts/config.json
+
+# Backup files
+*.backup
+*.bak
+
+# Test files
+test/
+*.test.js
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/

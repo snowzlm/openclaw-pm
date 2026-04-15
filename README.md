@@ -47,9 +47,19 @@ V1 提供了 3 个核心能力增强：
 
 ---
 
+## 下载安装
+
+### 下载链接
+
+- **GitHub 仓库**: https://github.com/snowzlm/openclaw-pm
+- **最新版本**: https://github.com/snowzlm/openclaw-pm/releases/latest
+- **直接下载**: https://github.com/snowzlm/openclaw-pm/archive/refs/heads/main.zip
+
+---
+
 ## 快速开始
 
-### 方式一：使用配置向导（推荐）
+### 方式一：Git Clone（推荐）
 
 ```bash
 # 1. 克隆仓库
@@ -63,7 +73,19 @@ cd openclaw-pm
 ./scripts/quick-diagnose.sh
 ```
 
-### 方式二：手动配置
+### 方式二：直接下载
+
+```bash
+# 下载最新版本
+wget https://github.com/snowzlm/openclaw-pm/archive/refs/heads/main.zip
+unzip main.zip
+cd openclaw-pm-main
+
+# 运行配置向导
+./scripts/setup.sh
+```
+
+### 方式三：手动配置
 
 ```bash
 # 1. 克隆仓库

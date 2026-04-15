@@ -1,13 +1,18 @@
 {
-  "name": "@1va7/openclaw-pm",
-  "version": "2.0.0",
-  "description": "OpenClaw 项目经理配置升级工具 V2 - 任务管理、Session 隔离、自动恢复",
+  "name": "@snowzlm/openclaw-pm",
+  "version": "3.0.0",
+  "description": "OpenClaw 项目经理配置升级工具 V3 - 跨平台优化版",
   "main": "index.js",
   "bin": {
     "openclaw-pm": "./index.js"
   },
   "scripts": {
-    "test": "node index.js"
+    "test": "node index.js",
+    "setup": "bash scripts/setup.sh",
+    "diagnose": "bash scripts/quick-diagnose.sh",
+    "health": "bash scripts/gateway-health-check.sh",
+    "briefing": "bash scripts/morning-briefing.sh",
+    "stats": "bash scripts/daily-stats.sh"
   },
   "keywords": [
     "openclaw",
@@ -16,19 +21,33 @@
     "project-manager",
     "pm",
     "configuration",
-    "v2",
+    "v3",
+    "cross-platform",
+    "health-check",
+    "monitoring",
     "task-management",
     "session-isolation",
     "auto-recovery"
   ],
-  "author": "VA7",
+  "author": "snowzlm (based on VA7's work)",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/1va7/openclaw-pm"
+    "url": "https://github.com/snowzlm/openclaw-pm"
   },
+  "bugs": {
+    "url": "https://github.com/snowzlm/openclaw-pm/issues"
+  },
+  "homepage": "https://github.com/snowzlm/openclaw-pm#readme",
   "files": [
     "index.js",
-    "config/"
-  ]
+    "config/",
+    "scripts/",
+    "docs/",
+    "README.md",
+    "CHANGELOG-v3.md"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  }
 }
