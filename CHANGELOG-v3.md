@@ -209,7 +209,7 @@ cp scripts/config.json.example scripts/config.json
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/snowzlm/openclaw-pm.git
+git clone https://github.com/风止 (snow)/openclaw-pm.git
 cd openclaw-pm
 
 # 2. 运行配置向导
@@ -284,5 +284,5 @@ MIT License
 ## 致谢
 
 - 原作者：VA7
-- 优化版本：snowzlm
+- 优化版本：风止 (snow)
 - 社区贡献者

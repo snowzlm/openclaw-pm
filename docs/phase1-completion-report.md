@@ -215,7 +215,7 @@ vim scripts/config.json
 
 ```
 commit 18e654e
-Author: snowzlm <snowzlm@users.noreply.github.com>
+作者: 风止 (snow)
 Date:   2026-04-15
 
     feat: v3.0.0 - 基础优化完成
@@ -251,6 +251,6 @@ Date:   2026-04-15
 - ✅ 备份机制缺失
 - ✅ 通知系统缺失
 
-项目已推送到 GitHub: https://github.com/snowzlm/openclaw-pm
+项目已推送到 GitHub: https://github.com/风止 (snow)/openclaw-pm
 
 下一步将继续优化剩余 4 个脚本。

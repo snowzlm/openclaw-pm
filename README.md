@@ -1,485 +1,368 @@
 # @snowzlm/openclaw-pm
 
-OpenClaw 项目经理配置升级工具 - 让你的 AI Agent 成为优秀的项目经理。
+OpenClaw 项目管理工具 - 健康检查、统计分析、备份恢复的 TypeScript 工具集。
 
-> 基于 @1va7/openclaw-pm v2.1.0，优化版本 v3.0.0
+> 当前版本: **v5.3.0** (TypeScript 重构版)
 
-## 版本说明
-
-### V3 (当前版本 - 优化版)
-
-V3 在 V2 基础上进行了全面优化，解决了跨平台兼容性、硬编码、依赖管理等问题。
-
-**V3 新增功能：**
-- 🔧 配置文件系统（统一配置管理）
-- 📦 统一工具库（跨平台兼容）
-- 🎯 配置向导（交互式配置）
-- 💾 备份机制（删除前自动备份）
-- 📢 通知系统（多渠道通知）
-- 🔄 自动恢复（未回复消息自动恢复）
-
-**V3 优化改进：**
-- ✅ 跨平台兼容（macOS + Linux）
-- ✅ 移除硬编码（端口、路径、任务列表）
-- ✅ 移除外部依赖（fix-sessions.py 等）
-- ✅ 添加依赖检查（jq、curl 等）
-- ✅ 改进错误处理
-- ✅ 添加确认机制（危险操作前询问）
-
-### V2
-
-V2 在 V1 基础上增加了任务管理、Session 隔离、自动恢复等核心能力。
-
-**V2 新增功能：**
-- 🔴 复杂任务管理（计划文件 + Checkpoint）
-- 🔒 Session 隔离规则（防止跨 session 混淆）
-- 🔄 GatewayRestart 强制恢复行为
-- 🎤 主动 Interview（需求澄清）
-- ⚡ 并行执行优化
-- 🔖 Checkpoint 机制
-
-### V1
-
-V1 提供了 3 个核心能力增强：
-- 主动性增强（Heartbeat 机制）
-- 可重入性增强（Memory Flush Protocol）
-- Agential Thinking（任务执行优先级）
+[![测试覆盖率](https://img.shields.io/badge/coverage-83%25-brightgreen.svg)](https://github.com/snowzlm/openclaw-pm)
+[![测试通过](https://img.shields.io/badge/tests-72%20passed-brightgreen.svg)](https://github.com/snowzlm/openclaw-pm)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0.2-blue.svg)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
 
 ---
 
-## 下载安装
+## 📦 快速开始
 
-### 下载链接
-
-- **GitHub 仓库**: https://github.com/snowzlm/openclaw-pm
-- **最新版本**: https://github.com/snowzlm/openclaw-pm/releases/latest
-- **直接下载**: https://github.com/snowzlm/openclaw-pm/archive/refs/heads/main.zip
-
----
-
-## 快速开始
-
-### 方式一：Git Clone（推荐）
+### 安装
 
 ```bash
-# 1. 克隆仓库
+# 克隆仓库
 git clone https://github.com/snowzlm/openclaw-pm.git
 cd openclaw-pm
 
-# 2. 运行配置向导
-./scripts/setup.sh
+# 安装依赖
+npm install
 
-# 3. 测试健康检查
-./scripts/quick-diagnose.sh
+# 编译
+npm run build
+
+# 运行测试
+npm test
 ```
 
-### 方式二：直接下载
+### 使用
 
 ```bash
-# 下载最新版本
-wget https://github.com/snowzlm/openclaw-pm/archive/refs/heads/main.zip
-unzip main.zip
-cd openclaw-pm-main
+# 健康检查
+npm run cli health
 
-# 运行配置向导
-./scripts/setup.sh
-```
+# 查看配置
+npm run cli config
 
-### 方式三：手动配置
+# 备份管理
+npm run cli backup
+npm run cli restore <backup-id>
+npm run cli backups
 
-```bash
-# 1. 克隆仓库
-git clone https://github.com/snowzlm/openclaw-pm.git
-cd openclaw-pm
-
-# 2. 复制配置文件
-cp scripts/config.json scripts/config.json.backup
-vim scripts/config.json
-
-# 3. 运行健康检查
-./scripts/gateway-health-check.sh
+# 统计分析
+npm run cli daily-stats
+npm run cli morning-briefing
+npm run cli heartbeat
+npm run cli check-unanswered
 ```
 
 ---
 
-## 配置文件说明
+## ✨ 功能特性
 
-### scripts/config.json
+### 核心功能
+
+- **健康检查**: Gateway/Sessions/Queue/Providers/Cron 全方位检查
+- **统计分析**: 每日统计、晨间简报、心跳检查
+- **备份恢复**: 自动备份、版本管理、一键恢复
+- **未回复检测**: 自动检测未回复消息并恢复
+- **配置管理**: 统一配置文件、环境变量支持
+
+### 技术特性
+
+- ✅ **TypeScript**: 类型安全、代码提示
+- ✅ **高测试覆盖**: 83% 整体覆盖率、72 个测试用例
+- ✅ **并发优化**: Promise.all 并发执行检查
+- ✅ **增量分析**: 日志增量读取、缓存管理
+- ✅ **跨平台**: Linux、macOS 支持
+
+---
+
+## 📊 版本历史
+
+### v5.x (TypeScript 重构版)
+
+#### v5.3.0 (2026-04-15) - 当前版本 🎉
+**测试覆盖率突破 80%！**
+
+- health-checker.ts: 41% → 94% (+53%)
+- 整体覆盖率: 65% → 83% (+18%)
+- 新增 26 个测试用例
+- 完整覆盖 Sessions/Queue/Providers/Cron 检查
+
+#### v5.2.0 (2026-04-15)
+**Logger 测试覆盖提升**
+
+- logger.ts: 48% → 80% (+32%)
+- 新增 17 个测试用例
+- 整体覆盖率: 61% → 65%
+
+#### v5.1.0 (2026-04-15)
+**测试套件完善**
+
+- 新增 config.test.ts 和 health-checker.test.ts
+- 修复所有 lint 错误
+- 集成 Husky + lint-staged
+
+#### v5.0.0 (2026-04-15)
+**性能优化 + 代码质量**
+
+- 日志索引、缓存管理、增量分析
+- Jest/ESLint/Prettier 集成
+- 终端图表渲染
+
+#### v4.x (2026-04-14)
+**TypeScript 核心架构**
+
+- 6 个核心模块 (config/logger/health-checker/backup/cache/incremental-analyzer)
+- CLI 命令行工具
+- 完整类型定义
+
+### v3.x (Bash 脚本版)
+
+#### v3.1.0
+- 健康检查历史追踪
+- thinking-only session 标记
+- 自动恢复优化
+
+#### v3.0.0
+- 配置文件系统
+- 统一工具库
+- 跨平台兼容
+
+### v2.x (原始版本)
+- 基于 @1va7/openclaw-pm v2.1.0
+- Bash 脚本实现
+
+---
+
+## 🏗️ 架构设计
+
+### 核心模块
+
+```
+src/
+├── config.ts              # 配置管理器
+├── logger.ts              # 日志系统
+├── health-checker.ts      # 健康检查器
+├── backup.ts              # 备份管理器
+├── cache-manager.ts       # 缓存管理器
+├── incremental-analyzer.ts # 增量分析器
+├── stats-generator.ts     # 统计生成器
+├── unanswered-checker.ts  # 未回复检查器
+├── chart-renderer.ts      # 图表渲染器
+├── error-handler.ts       # 错误处理器
+├── config-initializer.ts  # 配置初始化器
+├── cli.ts                 # CLI 接口
+└── types.ts               # 类型定义
+```
+
+### 测试覆盖
+
+```
+tests/__tests__/
+├── cache-manager.test.ts
+├── config.test.ts
+├── health-checker.test.ts
+├── health-checker-detailed.test.ts
+├── incremental-analyzer.test.ts
+└── logger.test.ts
+```
+
+---
+
+## 📖 使用指南
+
+### 配置文件
+
+默认配置文件: `~/.openclaw/pm-config.json`
 
 ```json
 {
-  "gateway": {
-    "port": 18789,                    // Gateway 端口
-    "logPath": "/tmp/openclaw",       // 日志路径
-    "healthCheckInterval": 300        // 健康检查间隔（秒）
+  "openclaw": {
+    "dir": "/root/.openclaw",
+    "sessions_dir": "/root/.openclaw/agents/main/sessions",
+    "queue_dir": "/root/.openclaw/queue",
+    "logs_dir": "/root/.openclaw/logs",
+    "gateway_port": 3000
   },
-  "locks": {
-    "timeoutMinutes": 5,              // Lock 超时时间（分钟）
-    "forceRemoveMinutes": 15          // 强制删除 Lock 时间（分钟）
-  },
-  "queue": {
-    "stuckThresholdMinutes": 3        // 队列卡住阈值（分钟）
-  },
-  "retry": {
-    "maxRetries": 5,                  // 最大重试次数
-    "intervalSeconds": 120            // 重试间隔（秒）
-  },
-  "cron": {
-    "criticalJobs": [                 // 关键 Cron 任务列表
-      {
-        "name": "example-job",
-        "jobId": "00000000-0000-0000-0000-000000000000",
-        "description": "示例任务"
-      }
-    ]
-  },
-  "notifications": {
-    "enabled": true,                  // 是否启用通知
-    "channels": ["telegram"]          // 通知渠道
+  "health_check": {
+    "max_queue_age_hours": 2,
+    "provider_error_threshold": 10
   },
   "backup": {
-    "enabled": true,                  // 是否启用备份
-    "path": "$HOME/.openclaw/backups" // 备份路径
-  }
+    "dir": "/root/.openclaw/backups",
+    "max_backups": 10
+  },
+  "cron_tasks": []
 }
 ```
 
----
+### CLI 命令
 
-## 健康检查脚本
-
-### 核心脚本
-
-#### 1. gateway-health-check.sh
-**自动检查和恢复 Gateway**
-
-功能：
-- 检测 Gateway 是否运行
-- 检测多个 Gateway 进程
-- 清理过期的 session lock
-- 清理 thinking-only session
-- 检测队列卡住
-- Provider 错误自动重试
-
-用法：
+#### 健康检查
 ```bash
-# 手动运行
-./scripts/gateway-health-check.sh
-
-# 定时运行（cron）
-*/5 * * * * /path/to/openclaw-pm/scripts/gateway-health-check.sh
+npm run cli health
 ```
 
-#### 2. check-unanswered.sh
-**检测未回复的用户消息**
+输出示例：
+```
+健康检查结果
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+状态: healthy
+评分: 85/100
 
-功能：
-- 扫描所有 agent 的 session
-- 检查最后一条消息是否未回复
-- 支持自动恢复（发送通知）
-- 支持过滤特定 agent
-
-用法：
-```bash
-# 检查未回复消息
-./scripts/check-unanswered.sh
-
-# 显示详细信息
-./scripts/check-unanswered.sh --verbose
-
-# 自动发送恢复通知
-./scripts/check-unanswered.sh --recover
-
-# 只检查特定 agent
-./scripts/check-unanswered.sh --agent main
-
-# JSON 格式输出
-./scripts/check-unanswered.sh --json
+检查项:
+  ✓ Gateway: 运行正常
+  ✓ Sessions: 正常 (5 个)
+  ✓ Queue: 队列为空
+  ✓ Providers: 运行正常
+  ✓ Cron: 2 个任务已启用
 ```
 
-#### 3. check-missed-crons.sh
-**检查 Cron 任务执行状态**
-
-功能：
-- 从配置文件读取任务列表
-- 检查任务是否今日执行
-- 支持自动补执行
-- 支持确认机制
-
-用法：
+#### 每日统计
 ```bash
-# 检查并报告
-./scripts/check-missed-crons.sh
-
-# 检查并补执行（需确认）
-./scripts/check-missed-crons.sh --run
-
-# 跳过确认直接补执行
-./scripts/check-missed-crons.sh --run --yes
-
-# JSON 格式输出
-./scripts/check-missed-crons.sh --json
+npm run cli daily-stats [日期]
 ```
 
-#### 4. quick-diagnose.sh
-**一键诊断常见问题**
-
-功能：
-- Gateway 进程状态
-- Session lock 文件
-- 消息接收情况
-- 队列状态
-- LLM 错误
-- 磁盘空间
-
-用法：
+#### 晨间简报
 ```bash
-./scripts/quick-diagnose.sh
+npm run cli morning-briefing
 ```
 
-#### 5. morning-briefing.sh
-**晨间简报**
-
-功能：
-- 系统健康状态
-- 昨夜活动摘要
-- Cron 任务执行状态
-- 待办事项检查
-- 今日建议
-
-用法：
+#### 未回复检查
 ```bash
-./scripts/morning-briefing.sh
+npm run cli check-unanswered [--agent <agent>] [--recover]
 ```
 
-#### 6. daily-stats.sh
-**每日活动统计**
-
-功能：
-- 消息收发统计
-- 按小时分布
-- 错误分析
-- Gateway 状态
-
-用法：
+#### 备份管理
 ```bash
-# 查看今天的统计
-./scripts/daily-stats.sh
+# 创建备份
+npm run cli backup
 
-# 查看指定日期
-./scripts/daily-stats.sh 2026-04-15
-```
+# 查看备份列表
+npm run cli backups
 
-#### 7. heartbeat-check.sh
-**统一 Heartbeat 检查**
-
-功能：
-- Context Health 检查
-- 进行中任务检查
-- Cron 任务检查
-
-用法：
-```bash
-# 运行所有检查
-./scripts/heartbeat-check.sh
-
-# JSON 格式输出
-./scripts/heartbeat-check.sh --json
-```
-
-#### 8. health-history.sh
-**健康检查历史追踪**
-
-功能：
-- 记录每次健康检查结果
-- 查询历史记录
-- 统计分析（健康评分、平均错误数等）
-- 自动清理旧记录
-
-用法：
-```bash
-# 查看最近 7 天的历史
-./scripts/health-history.sh list
-
-# 查看最近 30 天的历史
-./scripts/health-history.sh list --days 30
-
-# 显示统计信息
-./scripts/health-history.sh stats
-
-# 清理 30 天前的记录
-./scripts/health-history.sh clean
-
-# JSON 格式输出
-./scripts/health-history.sh stats --json
+# 恢复备份
+npm run cli restore <backup-id>
 ```
 
 ---
 
-## 定时任务配置
+## 🧪 测试
 
-### Linux (cron)
+### 运行测试
 
 ```bash
-# 编辑 crontab
-crontab -e
+# 运行所有测试
+npm test
 
-# 添加以下行
-# 健康检查（每 5 分钟）
-*/5 * * * * /path/to/openclaw-pm/scripts/gateway-health-check.sh
+# 运行测试并查看覆盖率
+npm run test:coverage
 
-# 晨间简报（每天 8:00）
-0 8 * * * /path/to/openclaw-pm/scripts/morning-briefing.sh
+# 运行特定测试
+npm test tests/__tests__/health-checker.test.ts
 ```
 
-### macOS (launchd)
+### 测试覆盖率
 
-运行配置向导会自动安装：
-```bash
-./scripts/setup.sh
 ```
+All files:
+  Statements: 83.13%
+  Branches:   72.05%
+  Functions:  89.85%
+  Lines:      83.99%
 
-或手动创建 `~/Library/LaunchAgents/ai.openclaw.health-check.plist`：
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>ai.openclaw.health-check</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/bin/bash</string>
-        <string>/path/to/openclaw-pm/scripts/gateway-health-check.sh</string>
-    </array>
-    <key>StartInterval</key>
-    <integer>300</integer>
-    <key>RunAtLoad</key>
-    <true/>
-</dict>
-</plist>
-```
-
-加载服务：
-```bash
-launchctl load ~/Library/LaunchAgents/ai.openclaw.health-check.plist
+核心模块:
+  health-checker.ts:       94.61%
+  logger.ts:               80%
+  config.ts:               78.72%
+  cache-manager.ts:        78.94%
+  incremental-analyzer.ts: 74.16%
 ```
 
 ---
 
-## V3 vs V2 核心差异
+## 🔧 开发
 
-| 维度 | V2 | V3 |
-|------|-----|-----|
-| 配置管理 | 硬编码 | 配置文件 |
-| 跨平台 | 仅 macOS | macOS + Linux |
-| 外部依赖 | 需要 Python 脚本 | 无外部依赖 |
-| 备份机制 | 无 | 自动备份 |
-| 通知系统 | 无 | 统一通知接口 |
-| 依赖检查 | 无 | 自动检查 |
-| 配置向导 | 无 | 交互式配置 |
+### 代码规范
+
+```bash
+# 代码检查
+npm run lint
+
+# 代码格式化
+npm run format
+
+# 类型检查
+npm run type-check
+```
+
+### Git Hooks
+
+项目使用 Husky + lint-staged 自动检查：
+- 提交前自动运行 lint 和格式化
+- 确保代码质量
 
 ---
 
-## 从 V2 迁移到 V3
+## 📝 文档
 
-### 1. 更新代码
-
-```bash
-cd openclaw-pm
-git pull origin main
-```
-
-### 2. 运行配置向导
-
-```bash
-./scripts/setup.sh
-```
-
-### 3. 迁移 Cron 任务列表
-
-如果你在 V2 中修改了 `check-missed-crons.sh` 的任务列表，需要迁移到 `config.json`：
-
-```json
-{
-  "cron": {
-    "criticalJobs": [
-      {
-        "name": "your-job-name",
-        "jobId": "your-job-id"
-      }
-    ]
-  }
-}
-```
+- [完整变更日志](CHANGELOG-v5.3.md)
+- [v5.3.0 完成报告](docs/v5.3.0-complete-report.md)
+- [v5.2.0 完成报告](docs/v5.2.0-complete-report.md)
+- [v5.1.0 完成报告](docs/v5.1.0-complete-report.md)
+- [v5.0.0 完成报告](docs/v5.0.0-complete-report.md)
+- [v4.0.0 完成报告](docs/v4.0.0-complete-report.md)
 
 ---
 
-## 故障排查
-
-### 脚本无法运行
-
-```bash
-# 检查权限
-chmod +x scripts/*.sh
-
-# 检查依赖
-./scripts/setup.sh
-```
-
-### 找不到 jq
-
-```bash
-# macOS
-brew install jq
-
-# Linux
-sudo apt-get install jq  # Debian/Ubuntu
-sudo yum install jq      # CentOS/RHEL
-```
-
-### Gateway Token 错误
-
-确保 `~/.openclaw/openclaw.json` 包含有效的 token：
-```json
-{
-  "token": "your-gateway-token-here"
-}
-```
-
----
-
-## 贡献
+## 🤝 贡献
 
 欢迎提交 Issue 和 PR！
 
 ### 开发指南
 
-1. 所有脚本必须使用 `lib/common.sh` 工具库
-2. 所有配置必须从 `config.json` 读取
-3. 所有跨平台差异必须在 `lib/common.sh` 中处理
-4. 删除文件前必须备份
-5. 重要操作必须发送通知
+1. Fork 项目
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
+
+### 代码规范
+
+- 使用 TypeScript
+- 遵循 ESLint 规则
+- 保持测试覆盖率 >80%
+- 添加单元测试
 
 ---
 
-## 许可证
+## 📄 许可证
 
 MIT License
 
 ---
 
-## 致谢
+## 👤 作者
 
-- 原作者：VA7 (@1va7/openclaw-pm)
-- 优化版本：snowzlm
-- 社区贡献者
+**风止 (snow)**
+- GitHub: [@snowzlm](https://github.com/snowzlm)
+- Telegram: @mxsnow
 
 ---
 
-## 更多内容
+## 🙏 致谢
 
-- 原项目：https://github.com/1va7/openclaw-pm
-- 优化版本：https://github.com/snowzlm/openclaw-pm
-- 详细变更：`CHANGELOG-v3.md`
-- 配置指南：`config/V2-升级指南.md`
+- 原项目: [@1va7/openclaw-pm](https://github.com/1va7/openclaw-pm)
+- OpenClaw 社区
+
+---
+
+## 📊 项目状态
+
+- ✅ 生产就绪
+- ✅ 活跃维护
+- ✅ 测试覆盖 >80%
+- ✅ TypeScript 类型安全
+
+---
+
+**最后更新**: 2026-04-15  
+**当前版本**: v5.3.0  
+**下载链接**: https://github.com/snowzlm/openclaw-pm
