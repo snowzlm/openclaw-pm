@@ -40,13 +40,7 @@ export class BackupManager {
     fs.mkdirSync(backupPath, { recursive: true });
 
     // 备份关键目录和文件
-    const itemsToBackup = [
-      'config.json',
-      'sessions',
-      'memory',
-      'workspace',
-      '.openclaw',
-    ];
+    const itemsToBackup = ['config.json', 'sessions', 'memory', 'workspace', '.openclaw'];
 
     for (const item of itemsToBackup) {
       const sourcePath = path.join(openclawDir, item);

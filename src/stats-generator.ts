@@ -1,7 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as child_process from 'child_process';
+import * as os from 'os';
 import { ConfigManager } from './config';
 import { Logger } from './logger';
+import { LogIndexManager } from './log-index';
+import { CacheManager } from './cache-manager';
+import { IncrementalAnalyzer } from './incremental-analyzer';
 
 export interface DailyStats {
   date: string;
@@ -78,16 +83,34 @@ export interface HeartbeatResult {
 }
 
 export class StatsGenerator {
+  private logIndexManager: LogIndexManager;
+  private cacheManager: CacheManager;
+  private incrementalAnalyzer: IncrementalAnalyzer;
+
   constructor(
     private config: ConfigManager,
     private logger: Logger
-  ) {}
+  ) {
+    const cacheDir = path.join(os.homedir(), '.openclaw', 'pm-cache');
+    this.logIndexManager = new LogIndexManager(cacheDir);
+    this.cacheManager = new CacheManager(cacheDir);
+    this.incrementalAnalyzer = new IncrementalAnalyzer(cacheDir);
+  }
 
   /**
-   * 生成每日统计
+   * 生成每日统计（使用缓存和索引）
    */
   async generateDailyStats(date?: string): Promise<DailyStats> {
     const targetDate = date || new Date().toISOString().split('T')[0];
+    const cacheKey = `daily-stats:${targetDate}`;
+
+    // 1. 尝试从缓存获取
+    const cached = this.cacheManager.get<DailyStats>(cacheKey);
+    if (cached) {
+      this.logger.debug(`使用缓存的统计数据: ${targetDate}`);
+      return cached;
+    }
+
     const logFile = this.getLogFile(targetDate);
 
     if (!fs.existsSync(logFile)) {
@@ -96,19 +119,31 @@ export class StatsGenerator {
 
     this.logger.info(`生成每日统计: ${targetDate}`);
 
+    // 2. 获取或构建索引
+    const startTime = Date.now();
+    const index = this.logIndexManager.getOrBuildIndex(targetDate, logFile);
+    const indexTime = Date.now() - startTime;
+    this.logger.debug(`索引耗时: ${indexTime}ms`);
+
+    // 3. 使用索引数据加速分析
     const content = fs.readFileSync(logFile, 'utf-8');
     const lines = content.split('\n');
 
-    return {
+    const stats: DailyStats = {
       date: targetDate,
-      messages: this.analyzeMessages(lines),
-      hourlyDistribution: this.analyzeHourlyDistribution(lines),
-      errors: this.analyzeErrors(lines),
+      messages: this.analyzeMessages(lines, index),
+      hourlyDistribution: this.analyzeHourlyDistribution(lines, index),
+      errors: this.analyzeErrors(lines, index),
       gateway: this.analyzeGateway(lines),
       performance: this.analyzePerformance(lines),
       channels: this.analyzeChannels(lines),
       health: this.calculateHealth(lines),
     };
+
+    // 4. 缓存结果（24小时）
+    this.cacheManager.set(cacheKey, stats, 24 * 60 * 60);
+
+    return stats;
   }
 
   /**
@@ -156,9 +191,32 @@ export class StatsGenerator {
   // 私有方法 - 每日统计
   // ============================================
 
-  private analyzeMessages(lines: string[]): DailyStats['messages'] {
+  private analyzeMessages(lines: string[], index?: any): DailyStats['messages'] {
+    // 如果有索引，使用索引数据
+    if (index) {
+      const received = index.messageCount;
+      const sent = lines.filter(
+        (l) => l.includes('sent message') || l.includes('dispatch complete')
+      ).length;
+
+      const sessionSet = new Set<string>();
+      lines.forEach((line) => {
+        const match = line.match(/session:([a-zA-Z0-9-]+)/);
+        if (match) sessionSet.add(match[1]);
+      });
+
+      return {
+        received,
+        sent,
+        activeSessions: sessionSet.size,
+      };
+    }
+
+    // 否则全文扫描
     const received = lines.filter((l) => l.includes('received message')).length;
-    const sent = lines.filter((l) => l.includes('sent message') || l.includes('dispatch complete')).length;
+    const sent = lines.filter(
+      (l) => l.includes('sent message') || l.includes('dispatch complete')
+    ).length;
 
     const sessionSet = new Set<string>();
     lines.forEach((line) => {
@@ -173,7 +231,16 @@ export class StatsGenerator {
     };
   }
 
-  private analyzeHourlyDistribution(lines: string[]): { hour: number; count: number }[] {
+  private analyzeHourlyDistribution(
+    lines: string[],
+    index?: any
+  ): { hour: number; count: number }[] {
+    // 如果有索引，使用索引数据
+    if (index && index.hourlyDistribution) {
+      return index.hourlyDistribution.map((h: any) => ({ hour: h.hour, count: h.count }));
+    }
+
+    // 否则全文扫描
     const hourCounts = new Map<number, number>();
 
     lines.forEach((line) => {
@@ -190,9 +257,13 @@ export class StatsGenerator {
       .sort((a, b) => a.hour - b.hour);
   }
 
-  private analyzeErrors(lines: string[]): DailyStats['errors'] {
+  private analyzeErrors(lines: string[], index?: any): DailyStats['errors'] {
+    // 如果有索引，使用索引数据
+    const total = index
+      ? index.errorCount
+      : lines.filter((l) => /ERROR|FailoverError|All models failed/.test(l)).length;
+
     const errorLines = lines.filter((l) => /ERROR|FailoverError|All models failed/.test(l));
-    const total = errorLines.length;
     const failover = errorLines.filter((l) => /FailoverError|All models failed/.test(l)).length;
     const timeout = errorLines.filter((l) => l.includes('timed out')).length;
     const connection = errorLines.filter((l) => /ECONNREFUSED|ECONNRESET|ETIMEDOUT/.test(l)).length;
@@ -267,7 +338,7 @@ export class StatsGenerator {
     let gatewayRunning = false;
     let gatewayPid: number | undefined;
     try {
-      const { execSync } = require('child_process');
+      const { execSync } = child_process;
       const result = execSync('pgrep -f "^openclaw-gateway$"', { encoding: 'utf-8' }).trim();
       if (result) {
         gatewayRunning = true;
@@ -280,7 +351,7 @@ export class StatsGenerator {
     // 检查 lock 文件
     let lockFiles = 0;
     try {
-      const { execSync } = require('child_process');
+      const { execSync } = child_process;
       const result = execSync(`find ${openclawDir}/agents/*/sessions/*.lock 2>/dev/null | wc -l`, {
         encoding: 'utf-8',
       }).trim();
@@ -292,7 +363,7 @@ export class StatsGenerator {
     // 检查磁盘使用率
     let diskUsage: number | undefined;
     try {
-      const { execSync } = require('child_process');
+      const { execSync } = child_process;
       const result = execSync(`df -h ${openclawDir} | tail -1 | awk '{print $5}' | sed 's/%//'`, {
         encoding: 'utf-8',
       }).trim();
@@ -321,8 +392,12 @@ export class StatsGenerator {
     const lines = content.split('\n');
 
     const messagesReceived = lines.filter((l) => l.includes('received message')).length;
-    const messagesSent = lines.filter((l) => l.includes('sent message') || l.includes('dispatch complete')).length;
-    const restarts = lines.filter((l) => /Gateway starting|openclaw-gateway.*started/.test(l)).length;
+    const messagesSent = lines.filter(
+      (l) => l.includes('sent message') || l.includes('dispatch complete')
+    ).length;
+    const restarts = lines.filter((l) =>
+      /Gateway starting|openclaw-gateway.*started/.test(l)
+    ).length;
     const errorLines = lines.filter((l) => /ERROR|FailoverError|All models failed/.test(l));
     const errors = errorLines.length;
 
@@ -351,7 +426,10 @@ export class StatsGenerator {
   }
 
   private async checkTodos(): Promise<MorningBriefing['todos']> {
-    const workspaceDir = this.config.get<string>('openclaw.workspace_dir', '/root/.openclaw/workspace');
+    const workspaceDir = this.config.get<string>(
+      'openclaw.workspace_dir',
+      '/root/.openclaw/workspace'
+    );
     const today = new Date().toISOString().split('T')[0];
     const memoryFile = path.join(workspaceDir, 'memory', `${today}.md`);
 
@@ -406,7 +484,7 @@ export class StatsGenerator {
 
   private async checkContextHealth(): Promise<{ status: string; message: string }> {
     try {
-      const { execSync } = require('child_process');
+      const { execSync } = child_process;
       execSync('pgrep -f "^openclaw-gateway$"', { encoding: 'utf-8' });
       return { status: 'ok', message: 'Gateway 运行正常' };
     } catch {
@@ -415,7 +493,10 @@ export class StatsGenerator {
   }
 
   private async checkInProgressTasks(): Promise<{ status: string; message: string }> {
-    const workspaceDir = this.config.get<string>('openclaw.workspace_dir', '/root/.openclaw/workspace');
+    const workspaceDir = this.config.get<string>(
+      'openclaw.workspace_dir',
+      '/root/.openclaw/workspace'
+    );
     const today = new Date().toISOString().split('T')[0];
     const memoryFile = path.join(workspaceDir, 'memory', `${today}.md`);
 

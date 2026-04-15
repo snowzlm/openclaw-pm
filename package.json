@@ -1,6 +1,6 @@
 {
   "name": "@snowzlm/openclaw-pm",
-  "version": "4.3.0",
+  "version": "5.0.0",
   "description": "OpenClaw 项目管理工具 v4.0.0 - TypeScript 重构版",
   "main": "dist/cli.js",
   "bin": {
@@ -11,12 +11,25 @@
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "prepublishOnly": "npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "prepare": "husky",
     "legacy:setup": "bash scripts/setup.sh",
     "legacy:diagnose": "bash scripts/quick-diagnose.sh",
     "legacy:health": "bash scripts/gateway-health-check.sh",
     "legacy:briefing": "bash scripts/morning-briefing.sh",
     "legacy:stats": "bash scripts/daily-stats.sh"
+  },
+  "lint-staged": {
+    "src/**/*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   },
   "keywords": [
     "openclaw",
@@ -61,13 +74,25 @@
   },
   "type": "commonjs",
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^25.6.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
+    "eslint": "^10.2.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "husky": "^9.1.7",
+    "jest": "^30.3.0",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.3",
+    "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.2"
   },
   "dependencies": {
+    "asciichart": "^1.5.25",
     "better-sqlite3": "^12.9.0",
-    "chalk": "^5.6.2",
+    "chalk": "^4.1.2",
     "commander": "^14.0.3"
   }
 }

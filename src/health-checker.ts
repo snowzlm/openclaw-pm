@@ -8,13 +8,7 @@ import * as path from 'path';
 import * as child_process from 'child_process';
 import { ConfigManager } from './config';
 import { Logger } from './logger';
-import {
-  HealthCheckResult,
-  HealthIssue,
-  CheckResult,
-  SessionInfo,
-  GatewayStatus,
-} from './types';
+import { HealthCheckResult, HealthIssue, CheckResult, SessionInfo, GatewayStatus } from './types';
 
 export class GatewayHealthChecker {
   private config: ConfigManager;
@@ -26,19 +20,27 @@ export class GatewayHealthChecker {
   }
 
   /**
-   * 执行完整健康检查
+   * 执行完整健康检查（并发优化）
    */
   async check(): Promise<HealthCheckResult> {
     this.logger.info('开始 Gateway 健康检查...');
 
+    const startTime = Date.now();
+
+    // 并发执行所有检查项
+    const [gateway, sessions, queue, providers, cron] = await Promise.all([
+      this.checkGateway(),
+      this.checkSessions(),
+      this.checkQueue(),
+      this.checkProviders(),
+      this.checkCron(),
+    ]);
+
+    const checks = { gateway, sessions, queue, providers, cron };
+    const checkTime = Date.now() - startTime;
+    this.logger.debug(`检查耗时: ${checkTime}ms`);
+
     const issues: HealthIssue[] = [];
-    const checks = {
-      gateway: await this.checkGateway(),
-      sessions: await this.checkSessions(),
-      queue: await this.checkQueue(),
-      providers: await this.checkProviders(),
-      cron: await this.checkCron(),
-    };
 
     // 收集所有问题
     for (const [category, result] of Object.entries(checks)) {
@@ -112,10 +114,10 @@ export class GatewayHealthChecker {
         message: 'Gateway 运行正常',
         details: status,
       };
-    } catch (error) {
+    } catch (err) {
       return {
         status: 'error',
-        message: `Gateway 检查失败: ${(error as Error).message}`,
+        message: `Gateway 检查失败: ${(err as Error).message}`,
       };
     }
   }
@@ -125,8 +127,9 @@ export class GatewayHealthChecker {
    */
   private async checkSessions(): Promise<CheckResult> {
     try {
-      const sessionsDir = this.config.get<string>('openclaw.sessions_dir') || 
-                          path.join(this.config.get<string>('openclaw.dir'), 'sessions');
+      const sessionsDir =
+        this.config.get<string>('openclaw.sessions_dir') ||
+        path.join(this.config.get<string>('openclaw.dir'), 'sessions');
 
       if (!fs.existsSync(sessionsDir)) {
         return {
@@ -169,10 +172,10 @@ export class GatewayHealthChecker {
         message: `Sessions 正常 (${sessions.length} 个)`,
         details: { total: sessions.length },
       };
-    } catch (error) {
+    } catch (err) {
       return {
         status: 'error',
-        message: `Sessions 检查失败: ${(error as Error).message}`,
+        message: `Sessions 检查失败: ${(err as Error).message}`,
       };
     }
   }
@@ -193,7 +196,7 @@ export class GatewayHealthChecker {
       }
 
       const queueFiles = fs.readdirSync(queueDir).filter((f) => f.endsWith('.json'));
-      
+
       if (queueFiles.length === 0) {
         return {
           status: 'ok',
@@ -208,7 +211,7 @@ export class GatewayHealthChecker {
       for (const file of queueFiles) {
         const filePath = path.join(queueDir, file);
         const stats = fs.statSync(filePath);
-        
+
         if (stats.mtimeMs < staleThreshold) {
           staleCount++;
         }
@@ -227,10 +230,10 @@ export class GatewayHealthChecker {
         message: `队列正常 (${queueFiles.length} 个任务)`,
         details: { total: queueFiles.length },
       };
-    } catch (error) {
+    } catch (err) {
       return {
         status: 'error',
-        message: `队列检查失败: ${(error as Error).message}`,
+        message: `队列检查失败: ${(err as Error).message}`,
       };
     }
   }
@@ -302,10 +305,10 @@ export class GatewayHealthChecker {
         status: 'ok',
         message: 'Providers 运行正常',
       };
-    } catch (error) {
+    } catch (err) {
       return {
         status: 'error',
-        message: `Providers 检查失败: ${(error as Error).message}`,
+        message: `Providers 检查失败: ${(err as Error).message}`,
       };
     }
   }
@@ -332,9 +335,9 @@ export class GatewayHealthChecker {
         return {
           status: 'warning',
           message: `有 ${disabledTasks.length}/${cronTasks.length} 个 Cron 任务被禁用`,
-          details: { 
+          details: {
             enabled: enabledTasks.map((t) => t.name),
-            disabled: disabledTasks.map((t) => t.name) 
+            disabled: disabledTasks.map((t) => t.name),
           },
         };
       }
@@ -344,10 +347,10 @@ export class GatewayHealthChecker {
         message: `${cronTasks.length} 个 Cron 任务已启用`,
         details: { tasks: cronTasks.map((t) => t.name) },
       };
-    } catch (error) {
+    } catch (err) {
       return {
         status: 'error',
-        message: `Cron 检查失败: ${(error as Error).message}`,
+        message: `Cron 检查失败: ${(err as Error).message}`,
       };
     }
   }
@@ -379,7 +382,7 @@ export class GatewayHealthChecker {
         .split('\n')
         .filter((line) => line)
         .map((pid) => parseInt(pid, 10));
-    } catch {
+    } catch (err) {
       return [];
     }
   }
@@ -401,8 +404,11 @@ export class GatewayHealthChecker {
       const filePath = path.join(sessionsDir, file);
       try {
         const content = fs.readFileSync(filePath, 'utf-8');
-        const lines = content.trim().split('\n').filter((l) => l);
-        
+        const lines = content
+          .trim()
+          .split('\n')
+          .filter((l) => l);
+
         if (lines.length === 0) continue;
 
         const lastLine = lines[lines.length - 1];
@@ -423,7 +429,7 @@ export class GatewayHealthChecker {
         }
 
         sessions.push(session);
-      } catch (error) {
+      } catch (err) {
         this.logger.warn(`解析 session 文件失败: ${file}`);
       }
     }
@@ -434,10 +440,7 @@ export class GatewayHealthChecker {
   /**
    * 计算健康评分
    */
-  private calculateHealthScore(
-    checks: Record<string, CheckResult>,
-    issues: HealthIssue[]
-  ): number {
+  private calculateHealthScore(checks: Record<string, CheckResult>, issues: HealthIssue[]): number {
     let score = 100;
 
     // Gateway 问题扣分

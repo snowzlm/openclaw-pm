@@ -17,10 +17,7 @@ const unanswered_checker_1 = require("./unanswered-checker");
 const stats_generator_1 = require("./stats-generator");
 const chalk_1 = __importDefault(require("chalk"));
 const program = new commander_1.Command();
-program
-    .name('openclaw-pm')
-    .description('OpenClaw 项目管理工具 v4.2.0')
-    .version('4.2.0');
+program.name('openclaw-pm').description('OpenClaw 项目管理工具 v4.3.0').version('4.3.0');
 // 全局选项
 program
     .option('-c, --config <path>', '配置文件路径')
@@ -230,11 +227,7 @@ program
 });
 // 初始化应用
 function initializeApp(options) {
-    const logLevel = options.debug
-        ? logger_1.LogLevel.DEBUG
-        : options.verbose
-            ? logger_1.LogLevel.INFO
-            : logger_1.LogLevel.WARN;
+    const logLevel = options.debug ? logger_1.LogLevel.DEBUG : options.verbose ? logger_1.LogLevel.INFO : logger_1.LogLevel.WARN;
     const logger = new logger_1.Logger({
         level: logLevel,
         enableConsole: true,
@@ -464,7 +457,11 @@ function printHeartbeatResult(result) {
         { name: 'Cron 任务', data: result.checks.cronTasks },
     ];
     checks.forEach((check, i) => {
-        const icon = check.data.status === 'ok' ? chalk_1.default.green('✓') : check.data.status === 'warning' ? chalk_1.default.yellow('⚠') : chalk_1.default.red('✗');
+        const icon = check.data.status === 'ok'
+            ? chalk_1.default.green('✓')
+            : check.data.status === 'warning'
+                ? chalk_1.default.yellow('⚠')
+                : chalk_1.default.red('✗');
         console.log(`  [${i + 1}/3] ${check.name}`);
         console.log(`    ${icon} ${check.data.message}`);
     });

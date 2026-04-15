@@ -11,14 +11,14 @@ import { GatewayHealthChecker } from './health-checker';
 import { BackupManager } from './backup';
 import { UnansweredChecker } from './unanswered-checker';
 import { StatsGenerator } from './stats-generator';
+import { ConfigInitializer } from './config-initializer';
+import { ChartRenderer } from './chart-renderer';
 import chalk from 'chalk';
+import * as fs from 'fs';
 
 const program = new Command();
 
-program
-  .name('openclaw-pm')
-  .description('OpenClaw 项目管理工具 v4.3.0')
-  .version('4.3.0');
+program.name('openclaw-pm').description('OpenClaw 项目管理工具 v5.0.0').version('5.0.0');
 
 // 全局选项
 program
@@ -120,8 +120,12 @@ program
   });
 
 // 配置命令
-program
+const configCmd = program
   .command('config')
+  .description('配置管理');
+
+configCmd
+  .command('show')
   .description('显示当前配置')
   .action(() => {
     const { config } = initializeApp(program.opts());
@@ -132,6 +136,56 @@ program
       process.exit(0);
     } catch (error) {
       console.error(chalk.red('读取配置失败:'), error);
+      process.exit(1);
+    }
+  });
+
+configCmd
+  .command('init')
+  .description('初始化配置文件')
+  .option('-i, --interactive', '交互式配置')
+  .option('-f, --force', '强制覆盖已有配置')
+  .action(async (options) => {
+    const { logger } = initializeApp(program.opts());
+    const initializer = new ConfigInitializer(logger);
+    const configPath = program.opts().config || '/root/.openclaw/pm-config.json';
+
+    try {
+      await initializer.initConfig(configPath, {
+        interactive: options.interactive,
+        force: options.force,
+      });
+      process.exit(0);
+    } catch (error) {
+      logger.error('初始化配置失败', error as Error);
+      process.exit(1);
+    }
+  });
+
+configCmd
+  .command('validate')
+  .description('验证配置文件')
+  .action(() => {
+    const { logger } = initializeApp(program.opts());
+    const initializer = new ConfigInitializer(logger);
+    const configPath = program.opts().config || '/root/.openclaw/pm-config.json';
+
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      const result = initializer.validateConfig(config);
+
+      if (result.valid) {
+        console.log(chalk.green('✓ 配置文件有效'));
+        process.exit(0);
+      } else {
+        console.log(chalk.red('✗ 配置文件无效'));
+        result.errors.forEach((error) => {
+          console.log(chalk.gray(`  - ${error}`));
+        });
+        process.exit(1);
+      }
+    } catch (error) {
+      logger.error('验证配置失败', error as Error);
       process.exit(1);
     }
   });
@@ -175,6 +229,7 @@ program
   .command('daily-stats [date]')
   .description('生成每日活动统计')
   .option('-j, --json', '输出 JSON 格式')
+  .option('--chart', '显示图表')
   .action(async (date, options) => {
     const { config, logger } = initializeApp(program.opts());
     const generator = new StatsGenerator(config, logger);
@@ -185,7 +240,7 @@ program
       if (options.json) {
         console.log(JSON.stringify(stats, null, 2));
       } else {
-        printDailyStats(stats);
+        printDailyStats(stats, options.chart);
       }
 
       process.exit(0);
@@ -247,11 +302,7 @@ program
 
 // 初始化应用
 function initializeApp(options: any): { config: ConfigManager; logger: Logger } {
-  const logLevel = options.debug
-    ? LogLevel.DEBUG
-    : options.verbose
-    ? LogLevel.INFO
-    : LogLevel.WARN;
+  const logLevel = options.debug ? LogLevel.DEBUG : options.verbose ? LogLevel.INFO : LogLevel.WARN;
 
   const logger = new Logger({
     level: logLevel,
@@ -275,8 +326,8 @@ function printHealthResult(result: any): void {
     result.status === 'healthy'
       ? chalk.green
       : result.status === 'warning'
-      ? chalk.yellow
-      : chalk.red;
+        ? chalk.yellow
+        : chalk.red;
 
   console.log(`状态: ${statusColor(result.status.toUpperCase())}`);
   console.log(`评分: ${result.score}/100`);
@@ -290,8 +341,8 @@ function printHealthResult(result: any): void {
       (check as any).status === 'ok'
         ? chalk.green('✓')
         : (check as any).status === 'warning'
-        ? chalk.yellow('⚠')
-        : chalk.red('✗');
+          ? chalk.yellow('⚠')
+          : chalk.red('✗');
 
     console.log(`  ${statusIcon} ${name}: ${(check as any).message}`);
   }
@@ -305,10 +356,10 @@ function printHealthResult(result: any): void {
         issue.severity === 'critical'
           ? chalk.red
           : issue.severity === 'error'
-          ? chalk.red
-          : issue.severity === 'warning'
-          ? chalk.yellow
-          : chalk.blue;
+            ? chalk.red
+            : issue.severity === 'warning'
+              ? chalk.yellow
+              : chalk.blue;
 
       console.log(`  ${severityColor('●')} [${issue.category}] ${issue.message}`);
     }
@@ -335,7 +386,7 @@ function printUnansweredResult(result: any): void {
     console.log();
     console.log(chalk.cyan(`  Session: ${session.sessionKey}`));
     console.log(chalk.blue(`  时间: ${session.timestamp}`));
-    
+
     if (session.preview) {
       console.log(chalk.blue(`  预览: ${session.preview}...`));
     }
@@ -348,14 +399,14 @@ function printUnansweredResult(result: any): void {
   if (result.failed && result.failed > 0) {
     console.log(chalk.red(`✗ 恢复失败 ${result.failed} 个会话`));
   }
-  
+
   if (!result.recovered && !result.failed) {
     console.log(chalk.yellow('提示: 使用 --recover 自动发送恢复通知'));
   }
 }
 
 // 打印每日统计结果
-function printDailyStats(stats: any): void {
+function printDailyStats(stats: any, showChart = false): void {
   console.log();
   console.log(chalk.bold('=== 每日活动统计 ==='));
   console.log(`日期: ${stats.date}`);
@@ -371,9 +422,23 @@ function printDailyStats(stats: any): void {
   // 小时分布
   if (stats.hourlyDistribution && stats.hourlyDistribution.length > 0) {
     console.log(chalk.bold('⏰ 按小时分布'));
-    for (const h of stats.hourlyDistribution) {
-      const bar = '█'.repeat(Math.ceil(h.count / 5));
-      console.log(`  ${h.hour.toString().padStart(2, '0')}:00 - ${h.hour.toString().padStart(2, '0')}:59  ${bar} (${h.count})`);
+    
+    if (showChart) {
+      // 使用图表展示
+      const chartData = stats.hourlyDistribution.map((h: any) => ({
+        label: `${h.hour.toString().padStart(2, '0')}:00`,
+        value: h.count,
+        color: h.count > 10 ? 'green' : h.count > 5 ? 'yellow' : 'gray'
+      }));
+      console.log(ChartRenderer.renderBarChart(chartData));
+    } else {
+      // 传统文本展示
+      for (const h of stats.hourlyDistribution) {
+        const bar = '█'.repeat(Math.ceil(h.count / 5));
+        console.log(
+          `  ${h.hour.toString().padStart(2, '0')}:00 - ${h.hour.toString().padStart(2, '0')}:59  ${bar} (${h.count})`
+        );
+      }
     }
     console.log();
   }
@@ -384,10 +449,25 @@ function printDailyStats(stats: any): void {
     console.log(chalk.green('  ✓ 无错误记录'));
   } else {
     console.log(`  总错误数: ${stats.errors.total}`);
-    console.log('  错误类型:');
-    if (stats.errors.failover > 0) console.log(`    - Failover 错误: ${stats.errors.failover}`);
-    if (stats.errors.timeout > 0) console.log(`    - 超时错误: ${stats.errors.timeout}`);
-    if (stats.errors.connection > 0) console.log(`    - 连接错误: ${stats.errors.connection}`);
+    
+    if (showChart) {
+      // 使用分布图展示错误类型
+      const errorData = [
+        { label: 'Failover', value: stats.errors.failover, color: 'red' },
+        { label: 'Timeout', value: stats.errors.timeout, color: 'yellow' },
+        { label: 'Connection', value: stats.errors.connection, color: 'magenta' }
+      ].filter(e => e.value > 0);
+      
+      if (errorData.length > 0) {
+        console.log(ChartRenderer.renderDistribution(errorData, '错误类型分布'));
+      }
+    } else {
+      console.log('  错误类型:');
+      if (stats.errors.failover > 0) console.log(`    - Failover 错误: ${stats.errors.failover}`);
+      if (stats.errors.timeout > 0) console.log(`    - 超时错误: ${stats.errors.timeout}`);
+      if (stats.errors.connection > 0) console.log(`    - 连接错误: ${stats.errors.connection}`);
+    }
+    
     if (stats.errors.recent.length > 0) {
       console.log('  最近错误:');
       stats.errors.recent.forEach((e: string) => console.log(`    ${e}`));
@@ -406,9 +486,23 @@ function printDailyStats(stats: any): void {
   if (stats.gateway.stops > 0) console.log(`  停止次数: ${stats.gateway.stops}`);
   console.log();
 
+  // 频道统计
+  if (showChart && (stats.channels.telegram > 0 || stats.channels.discord > 0 || stats.channels.slack > 0)) {
+    const channelData = [
+      { label: 'Telegram', value: stats.channels.telegram, color: 'blue' },
+      { label: 'Discord', value: stats.channels.discord, color: 'cyan' },
+      { label: 'Slack', value: stats.channels.slack, color: 'green' },
+      { label: 'Other', value: stats.channels.other, color: 'gray' }
+    ].filter(c => c.value > 0);
+    
+    console.log(ChartRenderer.renderDistribution(channelData, '📡 频道分布'));
+    console.log();
+  }
+
   // 总结
   console.log(chalk.bold('📝 总结'));
-  const scoreColor = stats.health.score >= 90 ? chalk.green : stats.health.score >= 70 ? chalk.yellow : chalk.red;
+  const scoreColor =
+    stats.health.score >= 90 ? chalk.green : stats.health.score >= 70 ? chalk.yellow : chalk.red;
   console.log(`  健康分数: ${scoreColor(stats.health.score + '/100')}`);
   console.log(`  活跃度: ${stats.health.activity}`);
   console.log(`  稳定性: ${stats.health.stability}`);
@@ -442,7 +536,9 @@ function printMorningBriefing(briefing: any): void {
 
   // 昨夜活动摘要
   console.log(chalk.bold(`🌙 昨夜活动摘要 (${briefing.yesterday.date})`));
-  console.log(`  📨 消息: 收到 ${briefing.yesterday.messagesReceived} 条, 发送 ${briefing.yesterday.messagesSent} 条`);
+  console.log(
+    `  📨 消息: 收到 ${briefing.yesterday.messagesReceived} 条, 发送 ${briefing.yesterday.messagesSent} 条`
+  );
   if (briefing.yesterday.restarts > 0) {
     console.log(chalk.yellow(`  ⚠ Gateway 重启: ${briefing.yesterday.restarts} 次`));
   }
@@ -505,7 +601,12 @@ function printHeartbeatResult(result: any): void {
   ];
 
   checks.forEach((check, i) => {
-    const icon = check.data.status === 'ok' ? chalk.green('✓') : check.data.status === 'warning' ? chalk.yellow('⚠') : chalk.red('✗');
+    const icon =
+      check.data.status === 'ok'
+        ? chalk.green('✓')
+        : check.data.status === 'warning'
+          ? chalk.yellow('⚠')
+          : chalk.red('✗');
     console.log(`  [${i + 1}/3] ${check.name}`);
     console.log(`    ${icon} ${check.data.message}`);
   });

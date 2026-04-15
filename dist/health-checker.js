@@ -47,18 +47,23 @@ class GatewayHealthChecker {
         this.logger = logger;
     }
     /**
-     * 执行完整健康检查
+     * 执行完整健康检查（并发优化）
      */
     async check() {
         this.logger.info('开始 Gateway 健康检查...');
+        const startTime = Date.now();
+        // 并发执行所有检查项
+        const [gateway, sessions, queue, providers, cron] = await Promise.all([
+            this.checkGateway(),
+            this.checkSessions(),
+            this.checkQueue(),
+            this.checkProviders(),
+            this.checkCron(),
+        ]);
+        const checks = { gateway, sessions, queue, providers, cron };
+        const checkTime = Date.now() - startTime;
+        this.logger.debug(`检查耗时: ${checkTime}ms`);
         const issues = [];
-        const checks = {
-            gateway: await this.checkGateway(),
-            sessions: await this.checkSessions(),
-            queue: await this.checkQueue(),
-            providers: await this.checkProviders(),
-            cron: await this.checkCron(),
-        };
         // 收集所有问题
         for (const [category, result] of Object.entries(checks)) {
             if (result.status === 'error') {
@@ -126,7 +131,7 @@ class GatewayHealthChecker {
                 details: status,
             };
         }
-        catch (error) {
+        catch {
             return {
                 status: 'error',
                 message: `Gateway 检查失败: ${error.message}`,
@@ -176,7 +181,7 @@ class GatewayHealthChecker {
                 details: { total: sessions.length },
             };
         }
-        catch (error) {
+        catch {
             return {
                 status: 'error',
                 message: `Sessions 检查失败: ${error.message}`,
@@ -226,7 +231,7 @@ class GatewayHealthChecker {
                 details: { total: queueFiles.length },
             };
         }
-        catch (error) {
+        catch {
             return {
                 status: 'error',
                 message: `队列检查失败: ${error.message}`,
@@ -292,7 +297,7 @@ class GatewayHealthChecker {
                 message: 'Providers 运行正常',
             };
         }
-        catch (error) {
+        catch {
             return {
                 status: 'error',
                 message: `Providers 检查失败: ${error.message}`,
@@ -320,7 +325,7 @@ class GatewayHealthChecker {
                     message: `有 ${disabledTasks.length}/${cronTasks.length} 个 Cron 任务被禁用`,
                     details: {
                         enabled: enabledTasks.map((t) => t.name),
-                        disabled: disabledTasks.map((t) => t.name)
+                        disabled: disabledTasks.map((t) => t.name),
                     },
                 };
             }
@@ -330,7 +335,7 @@ class GatewayHealthChecker {
                 details: { tasks: cronTasks.map((t) => t.name) },
             };
         }
-        catch (error) {
+        catch {
             return {
                 status: 'error',
                 message: `Cron 检查失败: ${error.message}`,
@@ -382,7 +387,10 @@ class GatewayHealthChecker {
             const filePath = path.join(sessionsDir, file);
             try {
                 const content = fs.readFileSync(filePath, 'utf-8');
-                const lines = content.trim().split('\n').filter((l) => l);
+                const lines = content
+                    .trim()
+                    .split('\n')
+                    .filter((l) => l);
                 if (lines.length === 0)
                     continue;
                 const lastLine = lines[lines.length - 1];
@@ -401,7 +409,7 @@ class GatewayHealthChecker {
                 }
                 sessions.push(session);
             }
-            catch (error) {
+            catch {
                 this.logger.warn(`解析 session 文件失败: ${file}`);
             }
         }

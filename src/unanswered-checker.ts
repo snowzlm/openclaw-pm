@@ -45,12 +45,7 @@ export class UnansweredChecker {
    * 检查未回复的消息
    */
   async check(options: CheckOptions = {}): Promise<UnansweredCheckResult> {
-    const {
-      includeOld = false,
-      maxAgeHours = 24,
-      agentFilter,
-      autoRecover = false,
-    } = options;
+    const { includeOld = false, maxAgeHours = 24, agentFilter, autoRecover = false } = options;
 
     this.logger.info('开始检查未回复消息...');
 
@@ -140,7 +135,10 @@ export class UnansweredChecker {
 
       // 读取最后一行
       const content = fs.readFileSync(sessionPath, 'utf-8');
-      const lines = content.trim().split('\n').filter((l) => l);
+      const lines = content
+        .trim()
+        .split('\n')
+        .filter((l) => l);
 
       if (lines.length === 0) {
         return null;
@@ -172,7 +170,8 @@ export class UnansweredChecker {
       }
       preview = preview.substring(0, 100);
 
-      const timestamp = lastMessage.timestamp || new Date(fs.statSync(sessionPath).mtime).toISOString();
+      const timestamp =
+        lastMessage.timestamp || new Date(fs.statSync(sessionPath).mtime).toISOString();
 
       return {
         sessionKey,
@@ -182,7 +181,7 @@ export class UnansweredChecker {
         preview,
         lastModified: new Date(fs.statSync(sessionPath).mtime),
       };
-    } catch (error) {
+    } catch {
       this.logger.debug(`检查 session 失败: ${sessionPath}`);
       return null;
     }
@@ -221,7 +220,7 @@ export class UnansweredChecker {
           recovered++;
           this.logger.warn(`⚠ 已发送 wake 通知: ${session.sessionKey}`);
         }
-      } catch (error) {
+      } catch {
         failed++;
         this.logger.error(`✗ 恢复失败: ${session.sessionKey}`);
       }
@@ -239,7 +238,7 @@ export class UnansweredChecker {
         encoding: 'utf-8',
         timeout: 5000,
       });
-    } catch (error) {
+    } catch {
       this.logger.error('发送 wake 通知失败');
     }
   }
