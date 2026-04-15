@@ -1,6 +1,6 @@
 "use strict";
 /**
- * OpenClaw PM v4.0.0 - TypeScript Core
+ * OpenClaw PM - TypeScript Core
  * 备份管理器
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {

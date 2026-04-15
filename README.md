@@ -313,13 +313,14 @@ npm run type-check
 
 ## 📝 文档
 
-- [完整变更日志](CHANGELOG-v5.4.md)
+快速入口：
+- [CHANGELOG 主入口](CHANGELOG.md)
 - [v5.4.0 完成报告](docs/v5.4.0-complete-report.md)
-- [v5.3.0 完成报告](docs/v5.3.0-complete-report.md)
-- [v5.2.0 完成报告](docs/v5.2.0-complete-report.md)
-- [v5.1.0 完成报告](docs/v5.1.0-complete-report.md)
-- [v5.0.0 完成报告](docs/v5.0.0-complete-report.md)
-- [v4.0.0 完成报告](docs/v4.0.0-complete-report.md)
+- [安装说明](INSTALL.md)
+- [贡献指南](CONTRIBUTING.md)
+- [当前仓库说明](README.md)
+
+历史版本与归档文档保留在 `docs/` 与 `CHANGELOG-v*.md` 中。
 
 ---
 

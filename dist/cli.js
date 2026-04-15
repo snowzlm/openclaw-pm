@@ -1,9 +1,42 @@
 #!/usr/bin/env node
 "use strict";
 /**
- * OpenClaw PM v4.2.0 - TypeScript Core
+ * OpenClaw PM v5.4.0 - TypeScript Core
  * 命令行接口
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -15,9 +48,12 @@ const health_checker_1 = require("./health-checker");
 const backup_1 = require("./backup");
 const unanswered_checker_1 = require("./unanswered-checker");
 const stats_generator_1 = require("./stats-generator");
+const config_initializer_1 = require("./config-initializer");
+const chart_renderer_1 = require("./chart-renderer");
 const chalk_1 = __importDefault(require("chalk"));
+const fs = __importStar(require("fs"));
 const program = new commander_1.Command();
-program.name('openclaw-pm').description('OpenClaw 项目管理工具 v4.3.0').version('4.3.0');
+program.name('openclaw-pm').description('OpenClaw 项目管理工具 v5.4.0').version('5.4.0');
 // 全局选项
 program
     .option('-c, --config <path>', '配置文件路径')
@@ -109,8 +145,9 @@ program
     }
 });
 // 配置命令
-program
-    .command('config')
+const configCmd = program.command('config').description('配置管理');
+configCmd
+    .command('show')
     .description('显示当前配置')
     .action(() => {
     const { config } = initializeApp(program.opts());
@@ -121,6 +158,54 @@ program
     }
     catch (error) {
         console.error(chalk_1.default.red('读取配置失败:'), error);
+        process.exit(1);
+    }
+});
+configCmd
+    .command('init')
+    .description('初始化配置文件')
+    .option('-i, --interactive', '交互式配置')
+    .option('-f, --force', '强制覆盖已有配置')
+    .action(async (options) => {
+    const { logger } = initializeApp(program.opts());
+    const initializer = new config_initializer_1.ConfigInitializer(logger);
+    const configPath = program.opts().config || (0, config_1.getDefaultConfigPath)();
+    try {
+        await initializer.initConfig(configPath, {
+            interactive: options.interactive,
+            force: options.force,
+        });
+        process.exit(0);
+    }
+    catch (error) {
+        logger.error('初始化配置失败', error);
+        process.exit(1);
+    }
+});
+configCmd
+    .command('validate')
+    .description('验证配置文件')
+    .action(() => {
+    const { logger } = initializeApp(program.opts());
+    const initializer = new config_initializer_1.ConfigInitializer(logger);
+    const configPath = program.opts().config || (0, config_1.getDefaultConfigPath)();
+    try {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        const result = initializer.validateConfig(config);
+        if (result.valid) {
+            console.log(chalk_1.default.green('✓ 配置文件有效'));
+            process.exit(0);
+        }
+        else {
+            console.log(chalk_1.default.red('✗ 配置文件无效'));
+            result.errors.forEach((error) => {
+                console.log(chalk_1.default.gray(`  - ${error}`));
+            });
+            process.exit(1);
+        }
+    }
+    catch (error) {
+        logger.error('验证配置失败', error);
         process.exit(1);
     }
 });
@@ -161,6 +246,7 @@ program
     .command('daily-stats [date]')
     .description('生成每日活动统计')
     .option('-j, --json', '输出 JSON 格式')
+    .option('--chart', '显示图表')
     .action(async (date, options) => {
     const { config, logger } = initializeApp(program.opts());
     const generator = new stats_generator_1.StatsGenerator(config, logger);
@@ -170,7 +256,7 @@ program
             console.log(JSON.stringify(stats, null, 2));
         }
         else {
-            printDailyStats(stats);
+            printDailyStats(stats, options.chart);
         }
         process.exit(0);
     }
@@ -310,7 +396,7 @@ function printUnansweredResult(result) {
     }
 }
 // 打印每日统计结果
-function printDailyStats(stats) {
+function printDailyStats(stats, showChart = false) {
     console.log();
     console.log(chalk_1.default.bold('=== 每日活动统计 ==='));
     console.log(`日期: ${stats.date}`);
@@ -324,9 +410,21 @@ function printDailyStats(stats) {
     // 小时分布
     if (stats.hourlyDistribution && stats.hourlyDistribution.length > 0) {
         console.log(chalk_1.default.bold('⏰ 按小时分布'));
-        for (const h of stats.hourlyDistribution) {
-            const bar = '█'.repeat(Math.ceil(h.count / 5));
-            console.log(`  ${h.hour.toString().padStart(2, '0')}:00 - ${h.hour.toString().padStart(2, '0')}:59  ${bar} (${h.count})`);
+        if (showChart) {
+            // 使用图表展示
+            const chartData = stats.hourlyDistribution.map((h) => ({
+                label: `${h.hour.toString().padStart(2, '0')}:00`,
+                value: h.count,
+                color: h.count > 10 ? 'green' : h.count > 5 ? 'yellow' : 'gray',
+            }));
+            console.log(chart_renderer_1.ChartRenderer.renderBarChart(chartData));
+        }
+        else {
+            // 传统文本展示
+            for (const h of stats.hourlyDistribution) {
+                const bar = '█'.repeat(Math.ceil(h.count / 5));
+                console.log(`  ${h.hour.toString().padStart(2, '0')}:00 - ${h.hour.toString().padStart(2, '0')}:59  ${bar} (${h.count})`);
+            }
         }
         console.log();
     }
@@ -337,13 +435,26 @@ function printDailyStats(stats) {
     }
     else {
         console.log(`  总错误数: ${stats.errors.total}`);
-        console.log('  错误类型:');
-        if (stats.errors.failover > 0)
-            console.log(`    - Failover 错误: ${stats.errors.failover}`);
-        if (stats.errors.timeout > 0)
-            console.log(`    - 超时错误: ${stats.errors.timeout}`);
-        if (stats.errors.connection > 0)
-            console.log(`    - 连接错误: ${stats.errors.connection}`);
+        if (showChart) {
+            // 使用分布图展示错误类型
+            const errorData = [
+                { label: 'Failover', value: stats.errors.failover, color: 'red' },
+                { label: 'Timeout', value: stats.errors.timeout, color: 'yellow' },
+                { label: 'Connection', value: stats.errors.connection, color: 'magenta' },
+            ].filter((e) => e.value > 0);
+            if (errorData.length > 0) {
+                console.log(chart_renderer_1.ChartRenderer.renderDistribution(errorData, '错误类型分布'));
+            }
+        }
+        else {
+            console.log('  错误类型:');
+            if (stats.errors.failover > 0)
+                console.log(`    - Failover 错误: ${stats.errors.failover}`);
+            if (stats.errors.timeout > 0)
+                console.log(`    - 超时错误: ${stats.errors.timeout}`);
+            if (stats.errors.connection > 0)
+                console.log(`    - 连接错误: ${stats.errors.connection}`);
+        }
         if (stats.errors.recent.length > 0) {
             console.log('  最近错误:');
             stats.errors.recent.forEach((e) => console.log(`    ${e}`));
@@ -362,6 +473,18 @@ function printDailyStats(stats) {
     if (stats.gateway.stops > 0)
         console.log(`  停止次数: ${stats.gateway.stops}`);
     console.log();
+    // 频道统计
+    if (showChart &&
+        (stats.channels.telegram > 0 || stats.channels.discord > 0 || stats.channels.slack > 0)) {
+        const channelData = [
+            { label: 'Telegram', value: stats.channels.telegram, color: 'blue' },
+            { label: 'Discord', value: stats.channels.discord, color: 'cyan' },
+            { label: 'Slack', value: stats.channels.slack, color: 'green' },
+            { label: 'Other', value: stats.channels.other, color: 'gray' },
+        ].filter((c) => c.value > 0);
+        console.log(chart_renderer_1.ChartRenderer.renderDistribution(channelData, '📡 频道分布'));
+        console.log();
+    }
     // 总结
     console.log(chalk_1.default.bold('📝 总结'));
     const scoreColor = stats.health.score >= 90 ? chalk_1.default.green : stats.health.score >= 70 ? chalk_1.default.yellow : chalk_1.default.red;

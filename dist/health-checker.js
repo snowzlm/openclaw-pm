@@ -1,6 +1,6 @@
 "use strict";
 /**
- * OpenClaw PM v4.0.0 - TypeScript Core
+ * OpenClaw PM - TypeScript Core
  * Gateway 健康检查器
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -131,10 +131,10 @@ class GatewayHealthChecker {
                 details: status,
             };
         }
-        catch {
+        catch (err) {
             return {
                 status: 'error',
-                message: `Gateway 检查失败: ${error.message}`,
+                message: `Gateway 检查失败: ${err.message}`,
             };
         }
     }
@@ -181,10 +181,10 @@ class GatewayHealthChecker {
                 details: { total: sessions.length },
             };
         }
-        catch {
+        catch (err) {
             return {
                 status: 'error',
-                message: `Sessions 检查失败: ${error.message}`,
+                message: `Sessions 检查失败: ${err.message}`,
             };
         }
     }
@@ -231,10 +231,10 @@ class GatewayHealthChecker {
                 details: { total: queueFiles.length },
             };
         }
-        catch {
+        catch (err) {
             return {
                 status: 'error',
-                message: `队列检查失败: ${error.message}`,
+                message: `队列检查失败: ${err.message}`,
             };
         }
     }
@@ -297,10 +297,10 @@ class GatewayHealthChecker {
                 message: 'Providers 运行正常',
             };
         }
-        catch {
+        catch (err) {
             return {
                 status: 'error',
-                message: `Providers 检查失败: ${error.message}`,
+                message: `Providers 检查失败: ${err.message}`,
             };
         }
     }
@@ -335,10 +335,10 @@ class GatewayHealthChecker {
                 details: { tasks: cronTasks.map((t) => t.name) },
             };
         }
-        catch {
+        catch (err) {
             return {
                 status: 'error',
-                message: `Cron 检查失败: ${error.message}`,
+                message: `Cron 检查失败: ${err.message}`,
             };
         }
     }
@@ -368,7 +368,7 @@ class GatewayHealthChecker {
                 .filter((line) => line)
                 .map((pid) => parseInt(pid, 10));
         }
-        catch {
+        catch (err) {
             return [];
         }
     }
@@ -409,7 +409,7 @@ class GatewayHealthChecker {
                 }
                 sessions.push(session);
             }
-            catch {
+            catch (err) {
                 this.logger.warn(`解析 session 文件失败: ${file}`);
             }
         }

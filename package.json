@@ -7,7 +7,7 @@
     "openclaw-pm": "./dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "rm -rf dist && tsc",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "prepublishOnly": "npm run build",
@@ -62,11 +62,9 @@
   "homepage": "https://github.com/snowzlm/openclaw-pm#readme",
   "files": [
     "dist/",
-    "scripts/",
-    "docs/",
     "README.md",
     "CHANGELOG.md",
-    "CHANGELOG-v5.4.md"
+    "LICENSE"
   ],
   "engines": {
     "node": ">=18.0.0"

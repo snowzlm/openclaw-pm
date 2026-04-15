@@ -1,6 +1,6 @@
 "use strict";
 /**
- * OpenClaw PM v4.2.0 - TypeScript Core
+ * OpenClaw PM - TypeScript Core
  * 未回复消息检查器
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
