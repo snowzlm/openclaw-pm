@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * OpenClaw PM v4.0.0 - TypeScript Core
+ * OpenClaw PM v4.2.0 - TypeScript Core
  * 命令行接口
  */
 export {};

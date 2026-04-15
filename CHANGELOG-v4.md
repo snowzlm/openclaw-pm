@@ -1,5 +1,57 @@
 # OpenClaw PM v4.x 更新日志
 
+## [4.2.0] - 2026-04-15
+
+### ✨ 新增功能
+- **未回复消息检查**: 实现 `check-unanswered` 命令，检测未回复的用户消息
+  - 支持按 agent 过滤
+  - 支持按时间过滤（默认 24 小时内活跃的 session）
+  - 支持自动恢复功能（`--recover`）
+  - JSON 输出支持
+
+### 📦 新增模块
+- `src/unanswered-checker.ts`: 未回复消息检查器（248 行）
+  - `check()`: 检查未回复消息
+  - `checkSession()`: 检查单个 session
+  - `recoverSessions()`: 自动恢复未回复的 sessions
+  - `sendWakeNotification()`: 发送 wake 通知
+
+### 🎯 CLI 命令
+```bash
+# 检查未回复消息
+openclaw-pm check-unanswered
+
+# 包括旧 session
+openclaw-pm check-unanswered --all
+
+# 只检查指定 agent
+openclaw-pm check-unanswered --agent main
+
+# 自动发送恢复消息
+openclaw-pm check-unanswered --recover
+
+# JSON 输出
+openclaw-pm check-unanswered --json
+```
+
+### 🔧 技术实现
+- 读取 `~/.openclaw/agents/*/sessions/*.jsonl` 文件
+- 解析最后一条消息的 role
+- 如果是 `user` 消息则标记为未回复
+- 支持通过 `openclaw sessions send` 发送恢复消息
+- 回退到 `openclaw cron wake` 通知
+
+### 📊 测试结果
+```
+=== 未回复消息检查 ===
+
+未回复会话数: 0
+
+✓ 没有发现未回复的消息
+```
+
+---
+
 ## [4.1.0] - 2026-04-15
 
 ### ✨ 新增功能
@@ -74,17 +126,11 @@
 ### 🔄 迁移指南
 详见 `docs/v4.0.0-migration-guide.md`
 
-### ⚠️ 已知限制
-- 队列检查未实现（v4.1.0 已修复）
-- Provider 检查未实现（v4.1.0 已修复）
-- Cron 检查未实现（v4.1.0 已修复）
-
 ---
 
 ## 版本规划
 
-### v4.2.0（计划中）
-- [ ] 迁移 `check-unanswered.sh` 功能
+### v4.3.0（计划中）
 - [ ] 迁移 `daily-stats.sh` 功能
 - [ ] 迁移 `morning-briefing.sh` 功能
 - [ ] 迁移 `heartbeat-check.sh` 功能

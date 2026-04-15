@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 /**
- * OpenClaw PM v4.0.0 - TypeScript Core
+ * OpenClaw PM v4.2.0 - TypeScript Core
  * 命令行接口
  */
 var __importDefault = (this && this.__importDefault) || function (mod) {
@@ -13,12 +13,13 @@ const config_1 = require("./config");
 const logger_1 = require("./logger");
 const health_checker_1 = require("./health-checker");
 const backup_1 = require("./backup");
+const unanswered_checker_1 = require("./unanswered-checker");
 const chalk_1 = __importDefault(require("chalk"));
 const program = new commander_1.Command();
 program
     .name('openclaw-pm')
-    .description('OpenClaw 项目管理工具 v4.0.0')
-    .version('4.0.0');
+    .description('OpenClaw 项目管理工具 v4.2.0')
+    .version('4.2.0');
 // 全局选项
 program
     .option('-c, --config <path>', '配置文件路径')
@@ -125,6 +126,38 @@ program
         process.exit(1);
     }
 });
+// 检查未回复消息命令
+program
+    .command('check-unanswered')
+    .description('检查未回复的用户消息')
+    .option('-j, --json', '输出 JSON 格式')
+    .option('-a, --all', '包括旧 session（默认只检查 24h 内活跃的）')
+    .option('--agent <id>', '只检查指定 agent')
+    .option('--recover', '自动发送恢复消息')
+    .option('--max-age <hours>', '最大 session 年龄（小时）', '24')
+    .action(async (options) => {
+    const { config, logger } = initializeApp(program.opts());
+    const checker = new unanswered_checker_1.UnansweredChecker(config, logger);
+    try {
+        const result = await checker.check({
+            includeOld: options.all,
+            maxAgeHours: parseInt(options.maxAge, 10),
+            agentFilter: options.agent,
+            autoRecover: options.recover,
+        });
+        if (options.json) {
+            console.log(JSON.stringify(result, null, 2));
+        }
+        else {
+            printUnansweredResult(result);
+        }
+        process.exit(result.count > 0 ? 1 : 0);
+    }
+    catch (error) {
+        logger.error('检查未回复消息失败', error);
+        process.exit(1);
+    }
+});
 // 初始化应用
 function initializeApp(options) {
     const logLevel = options.debug
@@ -180,6 +213,37 @@ function printHealthResult(result) {
             console.log(`  ${severityColor('●')} [${issue.category}] ${issue.message}`);
         }
         console.log();
+    }
+}
+// 打印未回复消息检查结果
+function printUnansweredResult(result) {
+    console.log();
+    console.log(chalk_1.default.bold('=== 未回复消息检查 ==='));
+    console.log();
+    console.log(`未回复会话数: ${result.count}`);
+    console.log();
+    if (result.unanswered.length === 0) {
+        console.log(chalk_1.default.green('✓ 没有发现未回复的消息'));
+        return;
+    }
+    console.log(chalk_1.default.bold('未回复的会话:'));
+    for (const session of result.unanswered) {
+        console.log();
+        console.log(chalk_1.default.cyan(`  Session: ${session.sessionKey}`));
+        console.log(chalk_1.default.blue(`  时间: ${session.timestamp}`));
+        if (session.preview) {
+            console.log(chalk_1.default.blue(`  预览: ${session.preview}...`));
+        }
+    }
+    console.log();
+    if (result.recovered && result.recovered > 0) {
+        console.log(chalk_1.default.green(`✓ 成功恢复 ${result.recovered} 个会话`));
+    }
+    if (result.failed && result.failed > 0) {
+        console.log(chalk_1.default.red(`✗ 恢复失败 ${result.failed} 个会话`));
+    }
+    if (!result.recovered && !result.failed) {
+        console.log(chalk_1.default.yellow('提示: 使用 --recover 自动发送恢复通知'));
     }
 }
 // 格式化文件大小
