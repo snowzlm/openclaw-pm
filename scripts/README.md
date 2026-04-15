@@ -1,6 +1,7 @@
 # OpenClaw 健康检查脚本
 
-这些脚本用于监控和维护 OpenClaw Gateway 的健康状态。
+> 说明：这是 **legacy Bash 工具说明**。当前主线请优先使用 TypeScript CLI 与 `README.md` / `CHANGELOG.md` 主入口。  
+> `scripts/` 目录保留用于兼容、迁移和 shell 运维场景，不属于当前 npm 发布主线。
 
 ## 脚本列表
 

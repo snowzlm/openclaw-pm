@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Legacy helper entry retained for historical config-upgrade workflow.
+// Current mainline entry is the TypeScript CLI: dist/cli.js
+
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -45,8 +48,9 @@ function safeReadConfig() {
   }
 }
 
-console.log('\n🚀 OpenClaw 项目经理配置升级工具\n');
+console.log('\n🚀 OpenClaw 项目经理配置升级工具（legacy 入口）\n');
 console.log('='.repeat(50));
+console.log('ℹ 当前主线入口：node dist/cli.js <command>\n');
 
 const workspace = findOpenClawWorkspace();
 const configContent = safeReadConfig();

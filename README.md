@@ -39,21 +39,21 @@ npm test
 
 ```bash
 # 健康检查
-npm run cli health
+node dist/cli.js health
 
 # 查看配置
-npm run cli config
+node dist/cli.js config show
 
 # 备份管理
-npm run cli backup
-npm run cli restore <backup-id>
-npm run cli backups
+node dist/cli.js backup
+node dist/cli.js restore <backup-id>
+node dist/cli.js backups
 
 # 统计分析
-npm run cli daily-stats
-npm run cli morning-briefing
-npm run cli heartbeat
-npm run cli check-unanswered
+node dist/cli.js daily-stats
+node dist/cli.js morning-briefing
+node dist/cli.js heartbeat
+node dist/cli.js check-unanswered
 ```
 
 ---
@@ -137,7 +137,7 @@ npm run cli check-unanswered
 
 #### 健康检查
 ```bash
-npm run cli health
+node dist/cli.js health
 ```
 
 输出示例：
@@ -157,29 +157,29 @@ npm run cli health
 
 #### 每日统计
 ```bash
-npm run cli daily-stats [日期]
+node dist/cli.js daily-stats [日期]
 ```
 
 #### 晨间简报
 ```bash
-npm run cli morning-briefing
+node dist/cli.js morning-briefing
 ```
 
 #### 未回复检查
 ```bash
-npm run cli check-unanswered [--agent <agent>] [--recover]
+node dist/cli.js check-unanswered [--agent <agent>] [--recover]
 ```
 
 #### 备份管理
 ```bash
 # 创建备份
-npm run cli backup
+node dist/cli.js backup
 
 # 查看备份列表
-npm run cli backups
+node dist/cli.js backups
 
 # 恢复备份
-npm run cli restore <backup-id>
+node dist/cli.js restore <backup-id>
 ```
 
 ---
