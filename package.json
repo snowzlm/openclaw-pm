@@ -1,18 +1,22 @@
 {
   "name": "@snowzlm/openclaw-pm",
-  "version": "3.0.0",
-  "description": "OpenClaw 项目经理配置升级工具 V3 - 跨平台优化版",
-  "main": "index.js",
+  "version": "4.0.0",
+  "description": "OpenClaw 项目管理工具 v4.0.0 - TypeScript 重构版",
+  "main": "dist/cli.js",
   "bin": {
-    "openclaw-pm": "./index.js"
+    "openclaw-pm": "./dist/cli.js"
   },
   "scripts": {
-    "test": "node index.js",
-    "setup": "bash scripts/setup.sh",
-    "diagnose": "bash scripts/quick-diagnose.sh",
-    "health": "bash scripts/gateway-health-check.sh",
-    "briefing": "bash scripts/morning-briefing.sh",
-    "stats": "bash scripts/daily-stats.sh"
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli.js",
+    "prepublishOnly": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "legacy:setup": "bash scripts/setup.sh",
+    "legacy:diagnose": "bash scripts/quick-diagnose.sh",
+    "legacy:health": "bash scripts/gateway-health-check.sh",
+    "legacy:briefing": "bash scripts/morning-briefing.sh",
+    "legacy:stats": "bash scripts/daily-stats.sh"
   },
   "keywords": [
     "openclaw",
@@ -21,33 +25,49 @@
     "project-manager",
     "pm",
     "configuration",
-    "v3",
+    "v4",
+    "typescript",
     "cross-platform",
     "health-check",
     "monitoring",
     "task-management",
     "session-isolation",
-    "auto-recovery"
+    "auto-recovery",
+    "backup",
+    "restore"
   ],
   "author": "snowzlm (based on VA7's work)",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/snowzlm/openclaw-pm"
+    "url": "git+https://github.com/snowzlm/openclaw-pm.git"
   },
   "bugs": {
     "url": "https://github.com/snowzlm/openclaw-pm/issues"
   },
   "homepage": "https://github.com/snowzlm/openclaw-pm#readme",
   "files": [
-    "index.js",
-    "config/",
+    "dist/",
     "scripts/",
     "docs/",
     "README.md",
-    "CHANGELOG-v3.md"
+    "CHANGELOG-v4.md"
   ],
   "engines": {
     "node": ">=14.0.0"
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.2"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3"
   }
 }
