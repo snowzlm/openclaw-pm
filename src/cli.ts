@@ -10,14 +10,15 @@ import { Logger, LogLevel } from './logger';
 import { GatewayHealthChecker } from './health-checker';
 import { BackupManager } from './backup';
 import { UnansweredChecker } from './unanswered-checker';
+import { StatsGenerator } from './stats-generator';
 import chalk from 'chalk';
 
 const program = new Command();
 
 program
   .name('openclaw-pm')
-  .description('OpenClaw 项目管理工具 v4.2.0')
-  .version('4.2.0');
+  .description('OpenClaw 项目管理工具 v4.3.0')
+  .version('4.3.0');
 
 // 全局选项
 program
@@ -169,6 +170,81 @@ program
     }
   });
 
+// 每日统计命令
+program
+  .command('daily-stats [date]')
+  .description('生成每日活动统计')
+  .option('-j, --json', '输出 JSON 格式')
+  .action(async (date, options) => {
+    const { config, logger } = initializeApp(program.opts());
+    const generator = new StatsGenerator(config, logger);
+
+    try {
+      const stats = await generator.generateDailyStats(date);
+
+      if (options.json) {
+        console.log(JSON.stringify(stats, null, 2));
+      } else {
+        printDailyStats(stats);
+      }
+
+      process.exit(0);
+    } catch (error) {
+      logger.error('统计失败', error as Error);
+      process.exit(1);
+    }
+  });
+
+// 晨间简报命令
+program
+  .command('morning-briefing')
+  .description('生成晨间简报')
+  .option('-j, --json', '输出 JSON 格式')
+  .action(async (options) => {
+    const { config, logger } = initializeApp(program.opts());
+    const generator = new StatsGenerator(config, logger);
+
+    try {
+      const briefing = await generator.generateMorningBriefing();
+
+      if (options.json) {
+        console.log(JSON.stringify(briefing, null, 2));
+      } else {
+        printMorningBriefing(briefing);
+      }
+
+      process.exit(0);
+    } catch (error) {
+      logger.error('简报生成失败', error as Error);
+      process.exit(1);
+    }
+  });
+
+// 心跳检查命令
+program
+  .command('heartbeat')
+  .description('执行心跳检查')
+  .option('-j, --json', '输出 JSON 格式')
+  .action(async (options) => {
+    const { config, logger } = initializeApp(program.opts());
+    const generator = new StatsGenerator(config, logger);
+
+    try {
+      const result = await generator.performHeartbeatCheck();
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        printHeartbeatResult(result);
+      }
+
+      process.exit(result.allPassed ? 0 : 1);
+    } catch (error) {
+      logger.error('心跳检查失败', error as Error);
+      process.exit(1);
+    }
+  });
+
 // 初始化应用
 function initializeApp(options: any): { config: ConfigManager; logger: Logger } {
   const logLevel = options.debug
@@ -276,6 +352,164 @@ function printUnansweredResult(result: any): void {
   if (!result.recovered && !result.failed) {
     console.log(chalk.yellow('提示: 使用 --recover 自动发送恢复通知'));
   }
+}
+
+// 打印每日统计结果
+function printDailyStats(stats: any): void {
+  console.log();
+  console.log(chalk.bold('=== 每日活动统计 ==='));
+  console.log(`日期: ${stats.date}`);
+  console.log();
+
+  // 基本统计
+  console.log(chalk.bold('📊 基本统计'));
+  console.log(`  📨 消息接收: ${stats.messages.received} 条`);
+  console.log(`  📤 消息发送: ${stats.messages.sent} 条`);
+  console.log(`  💬 活跃会话: ${stats.messages.activeSessions} 个`);
+  console.log();
+
+  // 小时分布
+  if (stats.hourlyDistribution && stats.hourlyDistribution.length > 0) {
+    console.log(chalk.bold('⏰ 按小时分布'));
+    for (const h of stats.hourlyDistribution) {
+      const bar = '█'.repeat(Math.ceil(h.count / 5));
+      console.log(`  ${h.hour.toString().padStart(2, '0')}:00 - ${h.hour.toString().padStart(2, '0')}:59  ${bar} (${h.count})`);
+    }
+    console.log();
+  }
+
+  // 错误分析
+  console.log(chalk.bold('❌ 错误分析'));
+  if (stats.errors.total === 0) {
+    console.log(chalk.green('  ✓ 无错误记录'));
+  } else {
+    console.log(`  总错误数: ${stats.errors.total}`);
+    console.log('  错误类型:');
+    if (stats.errors.failover > 0) console.log(`    - Failover 错误: ${stats.errors.failover}`);
+    if (stats.errors.timeout > 0) console.log(`    - 超时错误: ${stats.errors.timeout}`);
+    if (stats.errors.connection > 0) console.log(`    - 连接错误: ${stats.errors.connection}`);
+    if (stats.errors.recent.length > 0) {
+      console.log('  最近错误:');
+      stats.errors.recent.forEach((e: string) => console.log(`    ${e}`));
+    }
+  }
+  console.log();
+
+  // Gateway 状态
+  console.log(chalk.bold('🔧 Gateway 状态'));
+  if (stats.gateway.starts === 0) {
+    console.log('  无 Gateway 启动记录');
+  } else {
+    console.log(`  启动次数: ${stats.gateway.starts}`);
+    stats.gateway.startTimes.forEach((t: string) => console.log(`    - ${t}`));
+  }
+  if (stats.gateway.stops > 0) console.log(`  停止次数: ${stats.gateway.stops}`);
+  console.log();
+
+  // 总结
+  console.log(chalk.bold('📝 总结'));
+  const scoreColor = stats.health.score >= 90 ? chalk.green : stats.health.score >= 70 ? chalk.yellow : chalk.red;
+  console.log(`  健康分数: ${scoreColor(stats.health.score + '/100')}`);
+  console.log(`  活跃度: ${stats.health.activity}`);
+  console.log(`  稳定性: ${stats.health.stability}`);
+  console.log();
+}
+
+// 打印晨间简报
+function printMorningBriefing(briefing: any): void {
+  console.log();
+  console.log(chalk.bold('=== ☀️  OpenClaw 晨间简报 ==='));
+  console.log(`时间: ${new Date(briefing.timestamp).toLocaleString('zh-CN')}`);
+  console.log();
+
+  // 系统健康状态
+  console.log(chalk.bold('📊 系统健康状态'));
+  if (briefing.system.gatewayRunning) {
+    console.log(chalk.green(`  ✓ Gateway 运行中 (PID: ${briefing.system.gatewayPid})`));
+  } else {
+    console.log(chalk.red('  ✗ Gateway 未运行'));
+  }
+  if (briefing.system.lockFiles === 0) {
+    console.log(chalk.green('  ✓ 无 session lock 文件'));
+  } else {
+    console.log(chalk.yellow(`  ⚠ ${briefing.system.lockFiles} 个 session lock 文件`));
+  }
+  if (briefing.system.diskUsage) {
+    const diskColor = briefing.system.diskUsage > 80 ? chalk.yellow : chalk.green;
+    console.log(diskColor(`  磁盘使用率: ${briefing.system.diskUsage}%`));
+  }
+  console.log();
+
+  // 昨夜活动摘要
+  console.log(chalk.bold(`🌙 昨夜活动摘要 (${briefing.yesterday.date})`));
+  console.log(`  📨 消息: 收到 ${briefing.yesterday.messagesReceived} 条, 发送 ${briefing.yesterday.messagesSent} 条`);
+  if (briefing.yesterday.restarts > 0) {
+    console.log(chalk.yellow(`  ⚠ Gateway 重启: ${briefing.yesterday.restarts} 次`));
+  }
+  if (briefing.yesterday.errors === 0) {
+    console.log(chalk.green('  ✓ 无错误'));
+  } else {
+    console.log(chalk.red(`  ✗ 错误: ${briefing.yesterday.errors} 次`));
+    if (briefing.yesterday.lastError) {
+      console.log(`     最后错误: ${briefing.yesterday.lastError}`);
+    }
+  }
+  console.log();
+
+  // Cron 任务状态
+  console.log(chalk.bold('⏰ Cron 任务状态'));
+  if (briefing.cron.missedCount === 0) {
+    console.log(chalk.green(`  ✓ 所有关键任务已执行 (${briefing.cron.okCount} 个)`));
+  } else {
+    console.log(chalk.yellow(`  ⚠ ${briefing.cron.missedCount} 个任务未执行:`));
+    briefing.cron.missedTasks.forEach((t: string) => console.log(`     - ${t}`));
+  }
+  console.log();
+
+  // 待办事项
+  console.log(chalk.bold('📝 待办事项'));
+  if (briefing.todos.inProgress.length === 0) {
+    console.log(chalk.green('  ✓ 无进行中任务'));
+  } else {
+    console.log(chalk.yellow('  ⚠ 发现进行中任务:'));
+    briefing.todos.inProgress.forEach((t: string) => console.log(`     - ${t}`));
+  }
+  console.log();
+
+  // 今日建议
+  console.log(chalk.bold('💡 今日建议'));
+  if (briefing.suggestions.length === 0) {
+    console.log(chalk.green('  ✓ 一切正常，无需特别关注'));
+  } else {
+    briefing.suggestions.forEach((s: string) => console.log(chalk.yellow(`  → ${s}`)));
+  }
+  console.log();
+}
+
+// 打印心跳检查结果
+function printHeartbeatResult(result: any): void {
+  console.log();
+  console.log(chalk.bold('=== 💓 Heartbeat Check ==='));
+  console.log(`时间: ${new Date(result.timestamp).toLocaleString('zh-CN')}`);
+  console.log();
+
+  const statusIcon = result.allPassed ? chalk.green('✓') : chalk.red('✗');
+  console.log(`状态: ${statusIcon} ${result.allPassed ? '正常' : '异常'}`);
+  console.log();
+
+  console.log(chalk.bold('检查项:'));
+  const checks = [
+    { name: 'Context Health', data: result.checks.contextHealth },
+    { name: '进行中任务', data: result.checks.inProgressTasks },
+    { name: 'Cron 任务', data: result.checks.cronTasks },
+  ];
+
+  checks.forEach((check, i) => {
+    const icon = check.data.status === 'ok' ? chalk.green('✓') : check.data.status === 'warning' ? chalk.yellow('⚠') : chalk.red('✗');
+    console.log(`  [${i + 1}/3] ${check.name}`);
+    console.log(`    ${icon} ${check.data.message}`);
+  });
+  console.log();
 }
 
 // 格式化文件大小

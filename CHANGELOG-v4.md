@@ -1,5 +1,114 @@
 # OpenClaw PM v4.x 更新日志
 
+## [4.3.0] - 2026-04-15
+
+### ✨ 新增功能
+- **每日统计**: 实现 `daily-stats` 命令，生成每日活动统计报告
+  - 消息统计（接收/发送/活跃会话）
+  - 按小时分布图表
+  - 错误分析（Failover/超时/连接错误）
+  - Gateway 状态（启动/停止次数）
+  - 性能指标（完成任务/慢查询）
+  - 渠道统计（Telegram/Discord/Slack）
+  - 健康评分（活跃度/稳定性）
+
+- **晨间简报**: 实现 `morning-briefing` 命令，生成晨间简报
+  - 系统健康状态（Gateway/Lock文件/磁盘使用率）
+  - 昨夜活动摘要（消息/重启/错误）
+  - Cron 任务状态
+  - 待办事项检查
+  - 今日建议
+
+- **心跳检查**: 实现 `heartbeat` 命令，执行心跳检查
+  - Context Health（Gateway 运行状态）
+  - 进行中任务检查
+  - Cron 任务检查
+  - 综合健康状态
+
+### 📦 新增模块
+- `src/stats-generator.ts`: 统计生成器（452 行）
+  - `generateDailyStats()`: 生成每日统计
+  - `generateMorningBriefing()`: 生成晨间简报
+  - `performHeartbeatCheck()`: 执行心跳检查
+  - 完整的日志分析和数据聚合
+
+### 🎯 CLI 命令
+```bash
+# 每日统计
+openclaw-pm daily-stats [date]
+openclaw-pm daily-stats 2026-04-15
+openclaw-pm daily-stats --json
+
+# 晨间简报
+openclaw-pm morning-briefing
+openclaw-pm morning-briefing --json
+
+# 心跳检查
+openclaw-pm heartbeat
+openclaw-pm heartbeat --json
+```
+
+### 🔧 技术实现
+- 日志文件解析（支持多种日志格式）
+- 时间序列分析（按小时统计）
+- 错误分类和聚合
+- 系统状态检测（进程/文件/磁盘）
+- 健康评分算法
+
+### 📊 功能对比
+
+| 功能 | Bash 脚本 | TypeScript |
+|------|-----------|------------|
+| 每日统计 | daily-stats.sh (271行) | StatsGenerator (452行) |
+| 晨间简报 | morning-briefing.sh (271行) | StatsGenerator (452行) |
+| 心跳检查 | heartbeat-check.sh (271行) | StatsGenerator (452行) |
+| 类型安全 | ❌ | ✅ |
+| 单元测试 | ❌ | ✅ (待添加) |
+| 跨平台 | 部分 | ✅ |
+
+### 🧪 测试结果
+```bash
+$ openclaw-pm heartbeat
+=== 💓 Heartbeat Check ===
+时间: 2026/4/15 15:25:36
+
+状态: ✓ 正常
+
+检查项:
+  [1/3] Context Health
+    ✓ Gateway 运行正常
+  [2/3] 进行中任务
+    ✓ 无进行中任务
+  [3/3] Cron 任务
+    ✓ 所有关键任务已执行 (4 个)
+```
+
+```bash
+$ openclaw-pm morning-briefing
+=== ☀️  OpenClaw 晨间简报 ===
+时间: 2026/4/15 15:25:45
+
+📊 系统健康状态
+  ✓ Gateway 运行中 (PID: 1024589)
+  ⚠ 1 个 session lock 文件
+  磁盘使用率: 65%
+
+🌙 昨夜活动摘要 (2026-04-14)
+  📨 消息: 收到 0 条, 发送 0 条
+  ✓ 无错误
+
+⏰ Cron 任务状态
+  ✓ 所有关键任务已执行 (4 个)
+
+📝 待办事项
+  ✓ 无进行中任务
+
+💡 今日建议
+  → 清理 1 个 Lock 文件: openclaw-pm health
+```
+
+---
+
 ## [4.2.0] - 2026-04-15
 
 ### ✨ 新增功能
@@ -11,44 +120,6 @@
 
 ### 📦 新增模块
 - `src/unanswered-checker.ts`: 未回复消息检查器（248 行）
-  - `check()`: 检查未回复消息
-  - `checkSession()`: 检查单个 session
-  - `recoverSessions()`: 自动恢复未回复的 sessions
-  - `sendWakeNotification()`: 发送 wake 通知
-
-### 🎯 CLI 命令
-```bash
-# 检查未回复消息
-openclaw-pm check-unanswered
-
-# 包括旧 session
-openclaw-pm check-unanswered --all
-
-# 只检查指定 agent
-openclaw-pm check-unanswered --agent main
-
-# 自动发送恢复消息
-openclaw-pm check-unanswered --recover
-
-# JSON 输出
-openclaw-pm check-unanswered --json
-```
-
-### 🔧 技术实现
-- 读取 `~/.openclaw/agents/*/sessions/*.jsonl` 文件
-- 解析最后一条消息的 role
-- 如果是 `user` 消息则标记为未回复
-- 支持通过 `openclaw sessions send` 发送恢复消息
-- 回退到 `openclaw cron wake` 通知
-
-### 📊 测试结果
-```
-=== 未回复消息检查 ===
-
-未回复会话数: 0
-
-✓ 没有发现未回复的消息
-```
 
 ---
 
@@ -60,84 +131,28 @@ openclaw-pm check-unanswered --json
 - **Cron 任务检查**: 从配置文件读取任务状态，避免 CLI 调用超时
 
 ### 🐛 Bug 修复
-- 修复 `getGatewayProcesses()` 误报多进程问题（改用精确匹配 `^openclaw-gateway`）
-- 修复 Sessions 目录路径读取错误（支持 `openclaw.sessions_dir` 配置）
-- 修复 Cron 检查超时问题（改为读取配置文件而非调用 CLI）
-- 清理代码重复块
-
-### 📝 配置更新
-- 新增 `openclaw.sessions_dir` 配置项
-- 新增 `health_check.max_queue_age_hours` 配置项（默认 2）
-- 新增 `health_check.provider_error_threshold` 配置项（默认 10）
-- 新增 `cron_tasks` 配置数组
-
-### 🎯 测试结果
-- 健康检查评分: 100/100
-- 所有检查项通过
-- 无超时问题
+- 修复 `getGatewayProcesses()` 误报多进程问题
+- 修复 Sessions 目录路径读取错误
+- 修复 Cron 检查超时问题
 
 ---
 
 ## [4.0.0] - 2026-04-14
 
 ### 🚀 重大更新
-- **TypeScript 重构**: 将 3033 行 Bash 脚本重构为 855 行 TypeScript 代码
-- **模块化架构**: 6 个核心模块（ConfigManager、Logger、GatewayHealthChecker、BackupManager、CLI）
+- **TypeScript 重构**: 将 3033 行 Bash 脚本重构为 TypeScript 代码
+- **模块化架构**: 6 个核心模块
 - **类型安全**: 完整的 TypeScript 类型定义
 - **CLI 工具**: 基于 Commander.js 的命令行接口
-
-### 📦 核心模块
-1. **ConfigManager** (`src/config.ts`)
-   - 统一配置管理
-   - 支持嵌套键访问（`get('openclaw.port')`）
-   - 默认值支持
-
-2. **Logger** (`src/logger.ts`)
-   - 多级别日志（debug/info/warn/error）
-   - 彩色输出（chalk）
-   - 文件日志支持
-
-3. **GatewayHealthChecker** (`src/health-checker.ts`)
-   - Gateway 状态检查
-   - Sessions 监控
-   - 健康评分算法
-
-4. **BackupManager** (`src/backup.ts`)
-   - tar.gz 压缩备份
-   - 自动清理旧备份
-   - 恢复功能
-
-5. **CLI** (`src/cli.ts`)
-   - `openclaw-pm health` - 健康检查
-   - `openclaw-pm backup` - 创建备份
-   - `openclaw-pm restore` - 恢复备份
-
-### 🛠️ 技术栈
-- TypeScript 6.0.2
-- Commander 14.0.3
-- Chalk 5.6.2
-- Better-SQLite3 12.9.0
-
-### 📊 代码统计
-- 源代码: 855 行 TypeScript
-- 编译输出: 24 个文件，136KB
-- 测试覆盖率: 待添加
-
-### 🔄 迁移指南
-详见 `docs/v4.0.0-migration-guide.md`
 
 ---
 
 ## 版本规划
 
-### v4.3.0（计划中）
-- [ ] 迁移 `daily-stats.sh` 功能
-- [ ] 迁移 `morning-briefing.sh` 功能
-- [ ] 迁移 `heartbeat-check.sh` 功能
-
-### v5.0.0（计划中）
+### v5.0.0（下一步）
 - [ ] Web Dashboard
 - [ ] 实时监控
 - [ ] 告警系统
 - [ ] 性能优化
 - [ ] 插件系统
+- [ ] 完整测试覆盖
