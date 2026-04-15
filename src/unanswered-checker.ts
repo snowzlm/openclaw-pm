@@ -1,5 +1,5 @@
 /**
- * OpenClaw PM v4.2.0 - TypeScript Core
+ * OpenClaw PM - TypeScript Core
  * 未回复消息检查器
  */
 

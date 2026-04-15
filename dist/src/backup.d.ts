@@ -1,5 +1,5 @@
 /**
- * OpenClaw PM v4.0.0 - TypeScript Core
+ * OpenClaw PM - TypeScript Core
  * 备份管理器
  */
 import { ConfigManager } from './config';

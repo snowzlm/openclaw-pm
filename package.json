@@ -38,11 +38,12 @@
     "project-manager",
     "pm",
     "configuration",
-    "v4",
     "typescript",
     "cross-platform",
     "health-check",
     "monitoring",
+    "observability",
+    "analytics",
     "task-management",
     "session-isolation",
     "auto-recovery",
@@ -64,10 +65,11 @@
     "scripts/",
     "docs/",
     "README.md",
+    "CHANGELOG.md",
     "CHANGELOG-v5.4.md"
   ],
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.0.0"
   },
   "directories": {
     "doc": "docs"
