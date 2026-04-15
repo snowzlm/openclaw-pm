@@ -1,10 +1,32 @@
-# @1va7/openclaw-pm
+# @snowzlm/openclaw-pm
 
 OpenClaw 项目经理配置升级工具 - 让你的 AI Agent 成为优秀的项目经理。
 
+> 基于 @1va7/openclaw-pm v2.1.0，优化版本 v3.0.0
+
 ## 版本说明
 
-### V2 (当前版本)
+### V3 (当前版本 - 优化版)
+
+V3 在 V2 基础上进行了全面优化，解决了跨平台兼容性、硬编码、依赖管理等问题。
+
+**V3 新增功能：**
+- 🔧 配置文件系统（统一配置管理）
+- 📦 统一工具库（跨平台兼容）
+- 🎯 配置向导（交互式配置）
+- 💾 备份机制（删除前自动备份）
+- 📢 通知系统（多渠道通知）
+- 🔄 自动恢复（未回复消息自动恢复）
+
+**V3 优化改进：**
+- ✅ 跨平台兼容（macOS + Linux）
+- ✅ 移除硬编码（端口、路径、任务列表）
+- ✅ 移除外部依赖（fix-sessions.py 等）
+- ✅ 添加依赖检查（jq、curl 等）
+- ✅ 改进错误处理
+- ✅ 添加确认机制（危险操作前询问）
+
+### V2
 
 V2 在 V1 基础上增加了任务管理、Session 隔离、自动恢复等核心能力。
 
@@ -23,204 +45,392 @@ V1 提供了 3 个核心能力增强：
 - 可重入性增强（Memory Flush Protocol）
 - Agential Thinking（任务执行优先级）
 
-## 使用方法
+---
+
+## 快速开始
+
+### 方式一：使用配置向导（推荐）
 
 ```bash
-# 安装 V2 配置
-npx @1va7/openclaw-pm
+# 1. 克隆仓库
+git clone https://github.com/snowzlm/openclaw-pm.git
+cd openclaw-pm
+
+# 2. 运行配置向导
+./scripts/setup.sh
+
+# 3. 测试健康检查
+./scripts/quick-diagnose.sh
 ```
 
-运行后，工具会：
-1. 如果检测到 OpenClaw workspace，自动保存配置文件
-2. 如果没有检测到，输出配置内容供你复制
+### 方式二：手动配置
 
-## V2 vs V1 核心差异
+```bash
+# 1. 克隆仓库
+git clone https://github.com/snowzlm/openclaw-pm.git
+cd openclaw-pm
 
-| 维度 | V1 | V2 |
-|------|-----|-----|
-| 任务管理 | 简单记录 | 计划文件 + Checkpoint |
-| Session 隔离 | 无 | 强制隔离规则 |
-| 重启恢复 | 检查待办 | 强制汇报 + 检查所有 session |
-| 需求澄清 | 无 | 主动 Interview |
-| 执行效率 | 串行 | 并行执行 |
-| 外部监控 | 无 | 完整的健康检查系统 |
+# 2. 复制配置文件
+cp scripts/config.json scripts/config.json.backup
+vim scripts/config.json
 
-## 升级内容详解
+# 3. 运行健康检查
+./scripts/gateway-health-check.sh
+```
 
-### V1 核心能力
+---
 
-#### 1. 主动性增强
-- Heartbeat 机制优化
-- 主动检查项目进度
-- 智能汇报时机
+## 配置文件说明
 
-#### 2. 可重入性增强
-- Session 重启恢复检查
-- Memory Flush Protocol
-- 上下文管理优化
+### scripts/config.json
 
-#### 3. Agential Thinking
-- 任务执行优先级
-- API > CLI > Skill > 浏览器
-- 效率最大化
+```json
+{
+  "gateway": {
+    "port": 18789,                    // Gateway 端口
+    "logPath": "/tmp/openclaw",       // 日志路径
+    "healthCheckInterval": 300        // 健康检查间隔（秒）
+  },
+  "locks": {
+    "timeoutMinutes": 5,              // Lock 超时时间（分钟）
+    "forceRemoveMinutes": 15          // 强制删除 Lock 时间（分钟）
+  },
+  "queue": {
+    "stuckThresholdMinutes": 3        // 队列卡住阈值（分钟）
+  },
+  "retry": {
+    "maxRetries": 5,                  // 最大重试次数
+    "intervalSeconds": 120            // 重试间隔（秒）
+  },
+  "cron": {
+    "criticalJobs": [                 // 关键 Cron 任务列表
+      {
+        "name": "example-job",
+        "jobId": "00000000-0000-0000-0000-000000000000",
+        "description": "示例任务"
+      }
+    ]
+  },
+  "notifications": {
+    "enabled": true,                  // 是否启用通知
+    "channels": ["telegram"]          // 通知渠道
+  },
+  "backup": {
+    "enabled": true,                  // 是否启用备份
+    "path": "$HOME/.openclaw/backups" // 备份路径
+  }
+}
+```
 
-### V2 新增能力
+---
 
-#### 1. 复杂任务管理（Claude Code 模式）
-- 强制要求先写计划文件（`temp/任务名-plan.md`）
-- 每完成一步更新计划文件
-- Context 压缩时依赖文件而非记忆
-- 完成后汇报 + 清理
-
-**为什么重要**：复杂任务跨越多个 session 时，计划文件是唯一可靠的状态记录。
-
-#### 2. 任务记录规则
-- 收到任务立即记录到 `memory/YYYY-MM-DD.md`
-- 记录状态、进度、上次汇报时间
-- 完成时更新状态
-
-**为什么重要**：Heartbeat 检查时才能发现有任务在进行中。
-
-#### 3. Session 隔离规则
-- 每次回复前检查 `inbound_meta`
-- 只基于当前 session 的聊天记录
-- 禁止跨 session 查找 context
-- 禁止假设 context
-
-**为什么重要**：防止把私人信息发到群聊，或把群聊信息发到 DM。
-
-#### 4. GatewayRestart 强制行为
-- 立即汇报重启原因
-- 检查恢复文件（`temp/recovery-*.json`）
-- 检查任务状态
-- 检查所有 session 的最后一条消息
-- 继续推进任务
-- 不要静默
-
-**为什么重要**：重启后不能静默，必须恢复所有未完成的工作。
-
-#### 5. 任务执行前检查
-- STOP：不要立刻回复
-- SEARCH：搜索 workspace 中的相关文件
-- RECORD：立即记录到 memory
-- PLAN：复杂任务写计划文件
-- THEN ACT：找到 context 后再执行
-
-**为什么重要**：用户让你做一件事，说明你已经有这件事的 context。
-
-#### 6. 主动 Interview
-- 需求模糊时必须先 interview
-- 用选择题而非开放题
-- 最多 2 轮 interview
-- 2 轮后必须开始执行
-
-**为什么重要**：需求模糊时埋头苦干，做出来不是用户想要的。
-
-#### 7. 并行执行
-- 独立任务必须并行
-- 多个不相关的 tool call 同时发出
-- 多个独立的 sub-agent 任务同时 spawn
-
-**为什么重要**：串行执行独立任务 = 浪费时间。
-
-#### 8. Checkpoint 机制
-- 复杂任务每完成一个 Phase 就 git commit
-- 计划文件 + git checkpoint = 完整的任务状态
-
-**为什么重要**：Session 崩溃时能从 git 历史恢复。
-
-## 健康检查脚本（V2 新增）
-
-V2 包含一套完整的外部健康检查系统，位于 `scripts/` 目录：
+## 健康检查脚本
 
 ### 核心脚本
 
-- **gateway-health-check.sh** — 自动检查和恢复 Gateway
-  - 检测多个 Gateway 进程
-  - 清理过期的 session lock
-  - 检测崩溃并自动重启
-  - 检测消息队列卡住
-  - 检测飞书 WebSocket 断连
+#### 1. gateway-health-check.sh
+**自动检查和恢复 Gateway**
 
-- **check-unanswered.sh** — 检测未回复的消息
-  - 扫描所有 agent 的 session
-  - 检查最后一条消息是否未回复
-  - 支持 JSON 输出
+功能：
+- 检测 Gateway 是否运行
+- 检测多个 Gateway 进程
+- 清理过期的 session lock
+- 清理 thinking-only session
+- 检测队列卡住
+- Provider 错误自动重试
 
-- **heartbeat-check.sh** — 统一执行 HEARTBEAT.md 检查
-  - Context Health 检查
-  - 进行中任务检查
-  - Cron 任务检查
-
-- **check-missed-crons.sh** — 检查 cron 任务执行状态
-  - 查询 cron API
-  - 检查关键任务是否执行
-  - 支持自动补执行
-
-- **quick-diagnose.sh** — 一键诊断常见问题
-  - Gateway 进程状态
-  - Session lock 文件
-  - 飞书 WebSocket 连接
-  - 消息队列状态
-  - LLM 错误
-
-- **morning-briefing.sh** — 晨间简报
-  - 系统健康状态
-  - 昨夜活动摘要
-  - Cron 任务执行状态
-  - 待办事项检查
-
-- **daily-stats.sh** — 每日活动统计
-  - 消息收发统计
-  - 按小时分布的消息量
-  - 错误分析
-  - Gateway 状态
-
-### 安装脚本
-
+用法：
 ```bash
-# 复制脚本到 workspace
-cp scripts/*.sh ~/.openclaw/workspace/scripts/
-chmod +x ~/.openclaw/workspace/scripts/*.sh
+# 手动运行
+./scripts/gateway-health-check.sh
 
-# 验证安装
-~/.openclaw/workspace/scripts/quick-diagnose.sh
+# 定时运行（cron）
+*/5 * * * * /path/to/openclaw-pm/scripts/gateway-health-check.sh
 ```
 
-详细使用说明请参考 `scripts/README.md`。
+#### 2. check-unanswered.sh
+**检测未回复的用户消息**
 
-## 关于
+功能：
+- 扫描所有 agent 的 session
+- 检查最后一条消息是否未回复
+- 支持自动恢复（发送通知）
+- 支持过滤特定 agent
 
-来自 VA7 的 OpenClaw 调教经验分享。
+用法：
+```bash
+# 检查未回复消息
+./scripts/check-unanswered.sh
 
-**为什么需要这些调教？**
+# 显示详细信息
+./scripts/check-unanswered.sh --verbose
 
-LLM 是无状态的，每次对话都是"新生"。官方设定假设：
-- 用户会主动管理 agent
-- Session 不会中断
-- 任务都是简单的
+# 自动发送恢复通知
+./scripts/check-unanswered.sh --recover
 
-现实情况：
-- 用户希望 agent 自主运行
-- Gateway 会重启、崩溃
-- 任务可能很复杂，跨越多个 session
+# 只检查特定 agent
+./scripts/check-unanswered.sh --agent main
 
-**V1 解决了什么？**
+# JSON 格式输出
+./scripts/check-unanswered.sh --json
+```
 
-核心洞察：Agent 需要"记忆外化"。
-- Memory Flush Protocol → 把记忆写到文件
-- 待办检查 → 把任务状态写到文件
-- 任务优先级 → 把执行策略写到文件
+#### 3. check-missed-crons.sh
+**检查 Cron 任务执行状态**
 
-**V2 解决了什么？**
+功能：
+- 从配置文件读取任务列表
+- 检查任务是否今日执行
+- 支持自动补执行
+- 支持确认机制
 
-核心洞察：Agent 需要"自我监控"。
-- 健康检查脚本 → 外部监控 agent 状态
-- Session 隔离 → 防止跨 session 混淆
-- 强制汇报 → 确保用户知道发生了什么
+用法：
+```bash
+# 检查并报告
+./scripts/check-missed-crons.sh
+
+# 检查并补执行（需确认）
+./scripts/check-missed-crons.sh --run
+
+# 跳过确认直接补执行
+./scripts/check-missed-crons.sh --run --yes
+
+# JSON 格式输出
+./scripts/check-missed-crons.sh --json
+```
+
+#### 4. quick-diagnose.sh
+**一键诊断常见问题**
+
+功能：
+- Gateway 进程状态
+- Session lock 文件
+- 消息接收情况
+- 队列状态
+- LLM 错误
+- 磁盘空间
+
+用法：
+```bash
+./scripts/quick-diagnose.sh
+```
+
+#### 5. morning-briefing.sh
+**晨间简报**
+
+功能：
+- 系统健康状态
+- 昨夜活动摘要
+- Cron 任务执行状态
+- 待办事项检查
+- 今日建议
+
+用法：
+```bash
+./scripts/morning-briefing.sh
+```
+
+#### 6. daily-stats.sh
+**每日活动统计**
+
+功能：
+- 消息收发统计
+- 按小时分布
+- 错误分析
+- Gateway 状态
+
+用法：
+```bash
+# 查看今天的统计
+./scripts/daily-stats.sh
+
+# 查看指定日期
+./scripts/daily-stats.sh 2026-04-15
+```
+
+#### 7. heartbeat-check.sh
+**统一 Heartbeat 检查**
+
+功能：
+- Context Health 检查
+- 进行中任务检查
+- Cron 任务检查
+
+用法：
+```bash
+# 运行所有检查
+./scripts/heartbeat-check.sh
+
+# JSON 格式输出
+./scripts/heartbeat-check.sh --json
+```
+
+---
+
+## 定时任务配置
+
+### Linux (cron)
+
+```bash
+# 编辑 crontab
+crontab -e
+
+# 添加以下行
+# 健康检查（每 5 分钟）
+*/5 * * * * /path/to/openclaw-pm/scripts/gateway-health-check.sh
+
+# 晨间简报（每天 8:00）
+0 8 * * * /path/to/openclaw-pm/scripts/morning-briefing.sh
+```
+
+### macOS (launchd)
+
+运行配置向导会自动安装：
+```bash
+./scripts/setup.sh
+```
+
+或手动创建 `~/Library/LaunchAgents/ai.openclaw.health-check.plist`：
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ai.openclaw.health-check</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/path/to/openclaw-pm/scripts/gateway-health-check.sh</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>300</integer>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+```
+
+加载服务：
+```bash
+launchctl load ~/Library/LaunchAgents/ai.openclaw.health-check.plist
+```
+
+---
+
+## V3 vs V2 核心差异
+
+| 维度 | V2 | V3 |
+|------|-----|-----|
+| 配置管理 | 硬编码 | 配置文件 |
+| 跨平台 | 仅 macOS | macOS + Linux |
+| 外部依赖 | 需要 Python 脚本 | 无外部依赖 |
+| 备份机制 | 无 | 自动备份 |
+| 通知系统 | 无 | 统一通知接口 |
+| 依赖检查 | 无 | 自动检查 |
+| 配置向导 | 无 | 交互式配置 |
+
+---
+
+## 从 V2 迁移到 V3
+
+### 1. 更新代码
+
+```bash
+cd openclaw-pm
+git pull origin main
+```
+
+### 2. 运行配置向导
+
+```bash
+./scripts/setup.sh
+```
+
+### 3. 迁移 Cron 任务列表
+
+如果你在 V2 中修改了 `check-missed-crons.sh` 的任务列表，需要迁移到 `config.json`：
+
+```json
+{
+  "cron": {
+    "criticalJobs": [
+      {
+        "name": "your-job-name",
+        "jobId": "your-job-id"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 故障排查
+
+### 脚本无法运行
+
+```bash
+# 检查权限
+chmod +x scripts/*.sh
+
+# 检查依赖
+./scripts/setup.sh
+```
+
+### 找不到 jq
+
+```bash
+# macOS
+brew install jq
+
+# Linux
+sudo apt-get install jq  # Debian/Ubuntu
+sudo yum install jq      # CentOS/RHEL
+```
+
+### Gateway Token 错误
+
+确保 `~/.openclaw/openclaw.json` 包含有效的 token：
+```json
+{
+  "token": "your-gateway-token-here"
+}
+```
+
+---
+
+## 贡献
+
+欢迎提交 Issue 和 PR！
+
+### 开发指南
+
+1. 所有脚本必须使用 `lib/common.sh` 工具库
+2. 所有配置必须从 `config.json` 读取
+3. 所有跨平台差异必须在 `lib/common.sh` 中处理
+4. 删除文件前必须备份
+5. 重要操作必须发送通知
+
+---
+
+## 许可证
+
+MIT License
+
+---
+
+## 致谢
+
+- 原作者：VA7 (@1va7/openclaw-pm)
+- 优化版本：snowzlm
+- 社区贡献者
+
+---
 
 ## 更多内容
 
-- 小红书：VA7
-- GitHub: https://github.com/1va7/openclaw-pm
-- 详细对比报告：`config/V2-升级指南.md`
+- 原项目：https://github.com/1va7/openclaw-pm
+- 优化版本：https://github.com/snowzlm/openclaw-pm
+- 详细变更：`CHANGELOG-v3.md`
+- 配置指南：`config/V2-升级指南.md`

@@ -1,5 +1,7 @@
 #!/bin/bash
 # check-missed-crons.sh - 检查关键 cron 任务是否执行
+# 优化版本 - 从配置文件读取任务列表
+#
 # 用法:
 #   ./check-missed-crons.sh           # 检查并报告
 #   ./check-missed-crons.sh --run     # 检查并补执行错过的任务
@@ -9,72 +11,47 @@
 #   0 = 所有关键任务都已执行
 #   1 = 有任务未执行
 
-OPENCLAW_DIR="$HOME/.openclaw"
-CONFIG_FILE="$OPENCLAW_DIR/openclaw.json"
-LOG_FILE="$OPENCLAW_DIR/logs/cron-check.log"
-GATEWAY_PORT=18789
+set -e
+
+# 加载工具库
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
+
+# 初始化
+init_common
 
 # 参数
 RUN_MISSED=false
 JSON_OUTPUT=false
+CONFIRM=true
 
 for arg in "$@"; do
     case $arg in
         --run) RUN_MISSED=true ;;
         --json) JSON_OUTPUT=true ;;
+        --yes|-y) CONFIRM=false ;;
     esac
 done
 
-# 颜色
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-# 关键任务列表 (name|job_id)
-CRITICAL_JOBS=(
-    "xiaohongshu-publish|6b0d101b-fbd9-49ca-b580-5ce3cf527a06"
-    "yingshi-taifeng-report|12144d92-ccc2-40a5-a924-e776f80f5e67"
-    "moltbook-report|2c2668dd-b985-4ed0-ba99-147e7781e3fd"
-)
-
-# 获取 gateway token
-get_token() {
-    grep -oE '"token":\s*"[^"]+' "$CONFIG_FILE" | head -1 | sed 's/"token":\s*"//'
-}
-
-# 调用 cron API
-call_cron_api() {
-    local action="$1"
-    local job_id="$2"
-    local token=$(get_token)
+# 从配置文件读取关键任务列表
+load_critical_jobs() {
+    local config=$(load_config)
     
-    if [ -z "$token" ]; then
-        echo "ERROR: Could not find gateway token" >&2
-        return 1
+    if [ -z "$config" ]; then
+        echo "[]"
+        return
     fi
     
-    local url="http://127.0.0.1:$GATEWAY_PORT/api/cron"
-    local data="{\"action\":\"$action\""
-    
-    if [ -n "$job_id" ]; then
-        data="${data},\"jobId\":\"$job_id\""
-    fi
-    data="${data}}"
-    
-    curl -s -X POST "$url" \
-        -H "Authorization: Bearer $token" \
-        -H "Content-Type: application/json" \
-        -d "$data" 2>/dev/null
+    jq -r '.cron.criticalJobs // []' "$config" 2>/dev/null || echo "[]"
 }
 
 # 检查任务是否今天执行过
 check_job_ran_today() {
     local job_id="$1"
-    local today_start=$(date -v0H -v0M -v0S +%s)000  # 今天 00:00:00 的毫秒时间戳
+    local today_start=$(date +%s)000  # 今天 00:00:00 的毫秒时间戳（简化版）
     
     # 获取任务运行历史
-    local runs=$(call_cron_api "runs" "$job_id")
+    local runs=$(call_openclaw_api "/api/cron" "POST" "{\"action\":\"runs\",\"jobId\":\"$job_id\"}")
     
     if [ -z "$runs" ] || echo "$runs" | grep -q '"error"'; then
         echo "error"
@@ -82,19 +59,7 @@ check_job_ran_today() {
     fi
     
     # 检查是否有今天的运行记录
-    local last_run=$(echo "$runs" | python3 -c "
-import sys, json
-try:
-    data = json.loads(sys.stdin.read())
-    runs = data.get('runs', [])
-    if runs:
-        last = max(runs, key=lambda x: x.get('startedAtMs', 0))
-        print(last.get('startedAtMs', 0))
-    else:
-        print(0)
-except:
-    print(0)
-" 2>/dev/null)
+    local last_run=$(echo "$runs" | jq -r '.runs[0].startedAtMs // 0' 2>/dev/null)
     
     if [ "$last_run" -ge "$today_start" ]; then
         echo "ok"
@@ -106,7 +71,7 @@ except:
 # 触发任务执行
 trigger_job() {
     local job_id="$1"
-    call_cron_api "run" "$job_id" > /dev/null 2>&1
+    call_openclaw_api "/api/cron" "POST" "{\"action\":\"run\",\"jobId\":\"$job_id\",\"runMode\":\"force\"}" > /dev/null 2>&1
 }
 
 # 主检查逻辑
@@ -118,11 +83,23 @@ main() {
     local results=""
     
     # 检查 gateway 是否运行
-    if ! curl -s "http://127.0.0.1:$GATEWAY_PORT/health" > /dev/null 2>&1; then
+    if ! is_gateway_running; then
         if ! $JSON_OUTPUT; then
             echo -e "${RED}✗${NC} Gateway 未运行，无法检查 cron 任务"
         fi
         exit 1
+    fi
+    
+    # 加载关键任务列表
+    local jobs=$(load_critical_jobs)
+    local job_count=$(echo "$jobs" | jq 'length' 2>/dev/null || echo "0")
+    
+    if [ "$job_count" -eq 0 ]; then
+        if ! $JSON_OUTPUT; then
+            echo -e "${YELLOW}⚠${NC} 未配置关键任务"
+            echo "请编辑 $SCRIPT_DIR/config.json 添加任务"
+        fi
+        exit 0
     fi
     
     if ! $JSON_OUTPUT; then
@@ -130,9 +107,16 @@ main() {
         echo ""
     fi
     
-    for job_entry in "${CRITICAL_JOBS[@]}"; do
-        local name="${job_entry%%|*}"
-        local job_id="${job_entry##*|}"
+    # 遍历所有任务
+    for i in $(seq 0 $((job_count - 1))); do
+        local job=$(echo "$jobs" | jq -r ".[$i]" 2>/dev/null)
+        local name=$(echo "$job" | jq -r '.name' 2>/dev/null)
+        local job_id=$(echo "$job" | jq -r '.jobId' 2>/dev/null)
+        
+        if [ -z "$name" ] || [ -z "$job_id" ]; then
+            continue
+        fi
+        
         local status=$(check_job_ran_today "$job_id")
         
         case $status in
@@ -141,7 +125,7 @@ main() {
                 if ! $JSON_OUTPUT; then
                     echo -e "${GREEN}✓${NC} $name"
                 fi
-                results="${results}{\"name\":\"$name\",\"status\":\"ok\"},"
+                results="${results}{\"name\":\"$name\",\"jobId\":\"$job_id\",\"status\":\"ok\"},"
                 ;;
             missed)
                 ((missed_count++))
@@ -149,14 +133,14 @@ main() {
                 if ! $JSON_OUTPUT; then
                     echo -e "${YELLOW}⚠${NC} $name - 今日未执行"
                 fi
-                results="${results}{\"name\":\"$name\",\"status\":\"missed\"},"
+                results="${results}{\"name\":\"$name\",\"jobId\":\"$job_id\",\"status\":\"missed\"},"
                 ;;
             error)
                 ((error_count++))
                 if ! $JSON_OUTPUT; then
                     echo -e "${RED}?${NC} $name - 无法检查"
                 fi
-                results="${results}{\"name\":\"$name\",\"status\":\"error\"},"
+                results="${results}{\"name\":\"$name\",\"jobId\":\"$job_id\",\"status\":\"error\"},"
                 ;;
         esac
     done
@@ -165,6 +149,16 @@ main() {
     if $RUN_MISSED && [ $missed_count -gt 0 ]; then
         if ! $JSON_OUTPUT; then
             echo ""
+            
+            if $CONFIRM; then
+                echo -e "${YELLOW}将补执行 $missed_count 个任务，是否继续？ [y/N]${NC}"
+                read -r confirm
+                if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+                    echo "已取消"
+                    exit 0
+                fi
+            fi
+            
             echo "🔄 补执行错过的任务..."
         fi
         
@@ -174,6 +168,9 @@ main() {
                 echo "  - 已触发: $job_id"
             fi
         done
+        
+        # 发送通知
+        notify "info" "已补执行 $missed_count 个错过的 Cron 任务"
     fi
     
     # 输出结果
@@ -191,9 +188,6 @@ main() {
             fi
         fi
     fi
-    
-    # 记录日志
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Checked: ok=$ok_count missed=$missed_count error=$error_count" >> "$LOG_FILE"
     
     # 退出码
     if [ $missed_count -gt 0 ]; then
