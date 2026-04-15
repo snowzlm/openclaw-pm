@@ -107,6 +107,66 @@ describe('CacheManager', () => {
     });
   });
 
+  describe('disk cache fallback', () => {
+    it('should load cache from disk and repopulate memory cache', () => {
+      const key = 'disk-backed-key';
+      const value = { data: 'from-disk' };
+
+      cacheManager.set(key, value, 60);
+      const freshManager = new CacheManager(testCacheDir);
+
+      expect(freshManager.get(key)).toEqual(value);
+      expect(freshManager.getStats().memoryEntries).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should delete corrupted cache file on get', () => {
+      const key = 'broken-key';
+      const hashed = require('crypto').createHash('md5').update(key).digest('hex');
+      const brokenFile = path.join(testCacheDir, 'disk-cache', `${hashed}.json`);
+      fs.mkdirSync(path.dirname(brokenFile), { recursive: true });
+      fs.writeFileSync(brokenFile, '{invalid json');
+
+      expect(cacheManager.get(key)).toBeNull();
+      expect(fs.existsSync(brokenFile)).toBe(false);
+    });
+  });
+
+  describe('memory limit handling', () => {
+    it('should evict oldest entries when memory limit is exceeded', () => {
+      const limitedManager = new CacheManager(testCacheDir, 0.0001);
+
+      limitedManager.set('oldest', { data: 'x'.repeat(400) }, 60);
+      limitedManager.set('newest', { data: 'y'.repeat(400) }, 60);
+
+      const stats = limitedManager.getStats();
+      expect(stats.memoryEntries).toBeLessThan(2);
+      expect(limitedManager.get('newest')).not.toBeNull();
+    });
+  });
+
+  describe('corrupted cache cleanup', () => {
+    it('should remove corrupted cache files during invalidate', () => {
+      const brokenFile = path.join(testCacheDir, 'disk-cache', 'broken.json');
+      fs.mkdirSync(path.dirname(brokenFile), { recursive: true });
+      fs.writeFileSync(brokenFile, '{invalid json');
+
+      cacheManager.invalidate('.*');
+
+      expect(fs.existsSync(brokenFile)).toBe(false);
+    });
+
+    it('should remove corrupted cache files during cleanup and count them', () => {
+      const brokenFile = path.join(testCacheDir, 'disk-cache', 'cleanup-broken.json');
+      fs.mkdirSync(path.dirname(brokenFile), { recursive: true });
+      fs.writeFileSync(brokenFile, '{invalid json');
+
+      const deletedCount = cacheManager.cleanup();
+
+      expect(deletedCount).toBeGreaterThanOrEqual(1);
+      expect(fs.existsSync(brokenFile)).toBe(false);
+    });
+  });
+
   describe('getStats', () => {
     it('should return cache statistics', () => {
       cacheManager.set('key1', { data: 'value1' }, 60);

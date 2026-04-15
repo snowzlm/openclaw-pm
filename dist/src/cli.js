@@ -171,7 +171,7 @@ configCmd
     .action(async (options) => {
     const { logger } = initializeApp(program.opts());
     const initializer = new config_initializer_1.ConfigInitializer(logger);
-    const configPath = program.opts().config || '/root/.openclaw/pm-config.json';
+    const configPath = program.opts().config || (0, config_1.getDefaultConfigPath)();
     try {
         await initializer.initConfig(configPath, {
             interactive: options.interactive,
@@ -190,7 +190,7 @@ configCmd
     .action(() => {
     const { logger } = initializeApp(program.opts());
     const initializer = new config_initializer_1.ConfigInitializer(logger);
-    const configPath = program.opts().config || '/root/.openclaw/pm-config.json';
+    const configPath = program.opts().config || (0, config_1.getDefaultConfigPath)();
     try {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
         const result = initializer.validateConfig(config);

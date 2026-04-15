@@ -37,7 +37,7 @@ exports.StatsGenerator = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const child_process = __importStar(require("child_process"));
-const os = __importStar(require("os"));
+const config_1 = require("./config");
 const log_index_1 = require("./log-index");
 const cache_manager_1 = require("./cache-manager");
 const incremental_analyzer_1 = require("./incremental-analyzer");
@@ -45,7 +45,7 @@ class StatsGenerator {
     constructor(config, logger) {
         this.config = config;
         this.logger = logger;
-        const cacheDir = path.join(os.homedir(), '.openclaw', 'pm-cache');
+        const cacheDir = (0, config_1.getDefaultCacheDir)((0, config_1.detectOpenClawDir)());
         this.logIndexManager = new log_index_1.LogIndexManager(cacheDir);
         this.cacheManager = new cache_manager_1.CacheManager(cacheDir);
         this.incrementalAnalyzer = new incremental_analyzer_1.IncrementalAnalyzer(cacheDir);
@@ -239,7 +239,7 @@ class StatsGenerator {
     // 私有方法 - 晨间简报
     // ============================================
     async checkSystemHealth() {
-        const openclawDir = this.config.get('openclaw.dir', '/root/.openclaw');
+        const openclawDir = this.config.get('openclaw.dir', (0, config_1.detectOpenClawDir)());
         // 检查 Gateway 进程
         let gatewayRunning = false;
         let gatewayPid;
@@ -319,7 +319,7 @@ class StatsGenerator {
         };
     }
     async checkTodos() {
-        const workspaceDir = this.config.get('openclaw.workspace_dir', '/root/.openclaw/workspace');
+        const workspaceDir = this.config.get('openclaw.workspace_dir', (0, config_1.getDefaultWorkspaceDir)((0, config_1.detectOpenClawDir)()));
         const today = new Date().toISOString().split('T')[0];
         const memoryFile = path.join(workspaceDir, 'memory', `${today}.md`);
         if (!fs.existsSync(memoryFile)) {
@@ -371,7 +371,7 @@ class StatsGenerator {
         }
     }
     async checkInProgressTasks() {
-        const workspaceDir = this.config.get('openclaw.workspace_dir', '/root/.openclaw/workspace');
+        const workspaceDir = this.config.get('openclaw.workspace_dir', (0, config_1.getDefaultWorkspaceDir)((0, config_1.detectOpenClawDir)()));
         const today = new Date().toISOString().split('T')[0];
         const memoryFile = path.join(workspaceDir, 'memory', `${today}.md`);
         if (!fs.existsSync(memoryFile)) {
@@ -393,7 +393,7 @@ class StatsGenerator {
     // 工具方法
     // ============================================
     getLogFile(date) {
-        const openclawDir = this.config.get('openclaw.dir', '/root/.openclaw');
+        const openclawDir = this.config.get('openclaw.dir', (0, config_1.detectOpenClawDir)());
         return path.join(openclawDir, 'logs', `gateway-${date}.log`);
     }
 }

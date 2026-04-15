@@ -5,7 +5,7 @@
  */
 
 import { Command } from 'commander';
-import { ConfigManager } from './config';
+import { ConfigManager, getDefaultConfigPath } from './config';
 import { Logger, LogLevel } from './logger';
 import { GatewayHealthChecker } from './health-checker';
 import { BackupManager } from './backup';
@@ -120,9 +120,7 @@ program
   });
 
 // 配置命令
-const configCmd = program
-  .command('config')
-  .description('配置管理');
+const configCmd = program.command('config').description('配置管理');
 
 configCmd
   .command('show')
@@ -148,7 +146,7 @@ configCmd
   .action(async (options) => {
     const { logger } = initializeApp(program.opts());
     const initializer = new ConfigInitializer(logger);
-    const configPath = program.opts().config || '/root/.openclaw/pm-config.json';
+    const configPath = program.opts().config || getDefaultConfigPath();
 
     try {
       await initializer.initConfig(configPath, {
@@ -168,7 +166,7 @@ configCmd
   .action(() => {
     const { logger } = initializeApp(program.opts());
     const initializer = new ConfigInitializer(logger);
-    const configPath = program.opts().config || '/root/.openclaw/pm-config.json';
+    const configPath = program.opts().config || getDefaultConfigPath();
 
     try {
       const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
@@ -422,13 +420,13 @@ function printDailyStats(stats: any, showChart = false): void {
   // 小时分布
   if (stats.hourlyDistribution && stats.hourlyDistribution.length > 0) {
     console.log(chalk.bold('⏰ 按小时分布'));
-    
+
     if (showChart) {
       // 使用图表展示
       const chartData = stats.hourlyDistribution.map((h: any) => ({
         label: `${h.hour.toString().padStart(2, '0')}:00`,
         value: h.count,
-        color: h.count > 10 ? 'green' : h.count > 5 ? 'yellow' : 'gray'
+        color: h.count > 10 ? 'green' : h.count > 5 ? 'yellow' : 'gray',
       }));
       console.log(ChartRenderer.renderBarChart(chartData));
     } else {
@@ -449,15 +447,15 @@ function printDailyStats(stats: any, showChart = false): void {
     console.log(chalk.green('  ✓ 无错误记录'));
   } else {
     console.log(`  总错误数: ${stats.errors.total}`);
-    
+
     if (showChart) {
       // 使用分布图展示错误类型
       const errorData = [
         { label: 'Failover', value: stats.errors.failover, color: 'red' },
         { label: 'Timeout', value: stats.errors.timeout, color: 'yellow' },
-        { label: 'Connection', value: stats.errors.connection, color: 'magenta' }
-      ].filter(e => e.value > 0);
-      
+        { label: 'Connection', value: stats.errors.connection, color: 'magenta' },
+      ].filter((e) => e.value > 0);
+
       if (errorData.length > 0) {
         console.log(ChartRenderer.renderDistribution(errorData, '错误类型分布'));
       }
@@ -467,7 +465,7 @@ function printDailyStats(stats: any, showChart = false): void {
       if (stats.errors.timeout > 0) console.log(`    - 超时错误: ${stats.errors.timeout}`);
       if (stats.errors.connection > 0) console.log(`    - 连接错误: ${stats.errors.connection}`);
     }
-    
+
     if (stats.errors.recent.length > 0) {
       console.log('  最近错误:');
       stats.errors.recent.forEach((e: string) => console.log(`    ${e}`));
@@ -487,14 +485,17 @@ function printDailyStats(stats: any, showChart = false): void {
   console.log();
 
   // 频道统计
-  if (showChart && (stats.channels.telegram > 0 || stats.channels.discord > 0 || stats.channels.slack > 0)) {
+  if (
+    showChart &&
+    (stats.channels.telegram > 0 || stats.channels.discord > 0 || stats.channels.slack > 0)
+  ) {
     const channelData = [
       { label: 'Telegram', value: stats.channels.telegram, color: 'blue' },
       { label: 'Discord', value: stats.channels.discord, color: 'cyan' },
       { label: 'Slack', value: stats.channels.slack, color: 'green' },
-      { label: 'Other', value: stats.channels.other, color: 'gray' }
-    ].filter(c => c.value > 0);
-    
+      { label: 'Other', value: stats.channels.other, color: 'gray' },
+    ].filter((c) => c.value > 0);
+
     console.log(ChartRenderer.renderDistribution(channelData, '📡 频道分布'));
     console.log();
   }

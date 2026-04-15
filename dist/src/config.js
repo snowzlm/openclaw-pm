@@ -38,17 +38,72 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ConfigManager = void 0;
+exports.detectOpenClawDir = detectOpenClawDir;
+exports.getDefaultConfigPath = getDefaultConfigPath;
+exports.getDefaultSessionsDir = getDefaultSessionsDir;
+exports.getDefaultWorkspaceDir = getDefaultWorkspaceDir;
+exports.getDefaultBackupDir = getDefaultBackupDir;
+exports.getDefaultCacheDir = getDefaultCacheDir;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
+function uniquePaths(paths) {
+    return Array.from(new Set(paths.filter(Boolean).map((p) => path.resolve(p))));
+}
+function scoreOpenClawDir(dir) {
+    if (!fs.existsSync(dir)) {
+        return 0;
+    }
+    let score = 1;
+    const markers = ['openclaw.json', 'pm-config.json', 'agents', 'logs', 'workspace'];
+    for (const marker of markers) {
+        if (fs.existsSync(path.join(dir, marker))) {
+            score += 2;
+        }
+    }
+    return score;
+}
+function detectOpenClawDir() {
+    if (process.env.OPENCLAW_DIR) {
+        return path.resolve(process.env.OPENCLAW_DIR);
+    }
+    const homeDir = os.homedir();
+    const candidates = uniquePaths([
+        path.join(homeDir, '.openclaw'),
+        process.env.HOME ? path.join(process.env.HOME, '.openclaw') : '',
+        path.join(process.cwd(), '.openclaw'),
+        '/root/.openclaw',
+    ]);
+    let bestCandidate = candidates[0] || path.join(homeDir, '.openclaw');
+    let bestScore = -1;
+    for (const candidate of candidates) {
+        const score = scoreOpenClawDir(candidate);
+        if (score > bestScore) {
+            bestCandidate = candidate;
+            bestScore = score;
+        }
+    }
+    return bestCandidate;
+}
+function getDefaultConfigPath() {
+    return path.join(detectOpenClawDir(), 'pm-config.json');
+}
+function getDefaultSessionsDir(openclawDir = detectOpenClawDir()) {
+    return path.join(openclawDir, 'agents', 'main', 'sessions');
+}
+function getDefaultWorkspaceDir(openclawDir = detectOpenClawDir()) {
+    return path.join(openclawDir, 'workspace');
+}
+function getDefaultBackupDir(openclawDir = detectOpenClawDir()) {
+    return path.join(openclawDir, 'backups');
+}
+function getDefaultCacheDir(openclawDir = detectOpenClawDir()) {
+    return path.join(openclawDir, 'pm-cache');
+}
 class ConfigManager {
     constructor(configPath) {
         this.config = null;
-        this.configPath = configPath || this.getDefaultConfigPath();
-    }
-    getDefaultConfigPath() {
-        const openclawDir = process.env.OPENCLAW_DIR || path.join(os.homedir(), '.openclaw');
-        return path.join(openclawDir, 'pm-config.json');
+        this.configPath = configPath || getDefaultConfigPath();
     }
     /**
      * 加载配置文件
@@ -119,10 +174,14 @@ class ConfigManager {
      * 创建默认配置
      */
     static createDefault(configPath) {
-        const openclawDir = process.env.OPENCLAW_DIR || path.join(os.homedir(), '.openclaw');
+        const openclawDir = detectOpenClawDir();
         const defaultConfig = {
             openclaw: {
                 dir: openclawDir,
+                sessions_dir: getDefaultSessionsDir(openclawDir),
+                queue_dir: path.join(openclawDir, 'queue'),
+                logs_dir: path.join(openclawDir, 'logs'),
+                workspace_dir: getDefaultWorkspaceDir(openclawDir),
                 gateway_port: 3000,
                 gateway_timeout: 30,
             },
@@ -135,7 +194,8 @@ class ConfigManager {
             backup: {
                 enabled: true,
                 max_backups: 10,
-                backup_dir: path.join(openclawDir, '.backup'),
+                backup_dir: getDefaultBackupDir(openclawDir),
+                dir: getDefaultBackupDir(openclawDir),
             },
             notification: {
                 enabled: false,

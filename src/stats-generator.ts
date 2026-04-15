@@ -1,8 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as child_process from 'child_process';
-import * as os from 'os';
-import { ConfigManager } from './config';
+import {
+  ConfigManager,
+  detectOpenClawDir,
+  getDefaultCacheDir,
+  getDefaultWorkspaceDir,
+} from './config';
 import { Logger } from './logger';
 import { LogIndexManager } from './log-index';
 import { CacheManager } from './cache-manager';
@@ -91,7 +95,7 @@ export class StatsGenerator {
     private config: ConfigManager,
     private logger: Logger
   ) {
-    const cacheDir = path.join(os.homedir(), '.openclaw', 'pm-cache');
+    const cacheDir = getDefaultCacheDir(detectOpenClawDir());
     this.logIndexManager = new LogIndexManager(cacheDir);
     this.cacheManager = new CacheManager(cacheDir);
     this.incrementalAnalyzer = new IncrementalAnalyzer(cacheDir);
@@ -332,7 +336,7 @@ export class StatsGenerator {
   // ============================================
 
   private async checkSystemHealth(): Promise<MorningBriefing['system']> {
-    const openclawDir = this.config.get<string>('openclaw.dir', '/root/.openclaw');
+    const openclawDir = this.config.get<string>('openclaw.dir', detectOpenClawDir());
 
     // 检查 Gateway 进程
     let gatewayRunning = false;
@@ -428,7 +432,7 @@ export class StatsGenerator {
   private async checkTodos(): Promise<MorningBriefing['todos']> {
     const workspaceDir = this.config.get<string>(
       'openclaw.workspace_dir',
-      '/root/.openclaw/workspace'
+      getDefaultWorkspaceDir(detectOpenClawDir())
     );
     const today = new Date().toISOString().split('T')[0];
     const memoryFile = path.join(workspaceDir, 'memory', `${today}.md`);
@@ -495,7 +499,7 @@ export class StatsGenerator {
   private async checkInProgressTasks(): Promise<{ status: string; message: string }> {
     const workspaceDir = this.config.get<string>(
       'openclaw.workspace_dir',
-      '/root/.openclaw/workspace'
+      getDefaultWorkspaceDir(detectOpenClawDir())
     );
     const today = new Date().toISOString().split('T')[0];
     const memoryFile = path.join(workspaceDir, 'memory', `${today}.md`);
@@ -526,7 +530,7 @@ export class StatsGenerator {
   // ============================================
 
   private getLogFile(date: string): string {
-    const openclawDir = this.config.get<string>('openclaw.dir', '/root/.openclaw');
+    const openclawDir = this.config.get<string>('openclaw.dir', detectOpenClawDir());
     return path.join(openclawDir, 'logs', `gateway-${date}.log`);
   }
 }

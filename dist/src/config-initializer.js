@@ -41,6 +41,7 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const readline = __importStar(require("readline"));
 const chalk_1 = __importDefault(require("chalk"));
+const config_1 = require("./config");
 class ConfigInitializer {
     constructor(logger) {
         this.logger = logger;
@@ -83,26 +84,29 @@ class ConfigInitializer {
             });
         };
         console.log(chalk_1.default.bold.cyan('\n📝 OpenClaw PM 配置向导\n'));
+        const detectedOpenClawDir = (0, config_1.detectOpenClawDir)();
+        const detectedSessionsDir = (0, config_1.getDefaultSessionsDir)(detectedOpenClawDir);
+        const detectedBackupDir = (0, config_1.getDefaultBackupDir)(detectedOpenClawDir);
         // OpenClaw 目录
-        const openclawDir = await question(chalk_1.default.cyan('OpenClaw 数据目录 [/root/.openclaw]: '));
+        const openclawDir = await question(chalk_1.default.cyan(`OpenClaw 数据目录 [${detectedOpenClawDir}]: `));
         // Sessions 目录
-        const sessionsDir = await question(chalk_1.default.cyan('Sessions 目录 [/root/.openclaw/agents/main/sessions]: '));
+        const sessionsDir = await question(chalk_1.default.cyan(`Sessions 目录 [${detectedSessionsDir}]: `));
         // Gateway 端口
         const gatewayPort = await question(chalk_1.default.cyan('Gateway 端口 [3000]: '));
         // 备份目录
-        const backupDir = await question(chalk_1.default.cyan('备份目录 [/root/.openclaw/backups]: '));
+        const backupDir = await question(chalk_1.default.cyan(`备份目录 [${detectedBackupDir}]: `));
         // 最大备份数
         const maxBackups = await question(chalk_1.default.cyan('最大备份数 [10]: '));
         rl.close();
         return {
             openclaw: {
-                dir: openclawDir || '/root/.openclaw',
-                sessions_dir: sessionsDir || '/root/.openclaw/agents/main/sessions',
+                dir: openclawDir || detectedOpenClawDir,
+                sessions_dir: sessionsDir || detectedSessionsDir,
                 gateway_port: parseInt(gatewayPort) || 3000,
             },
             backup: {
                 enabled: true,
-                dir: backupDir || '/root/.openclaw/backups',
+                dir: backupDir || detectedBackupDir,
                 max_backups: parseInt(maxBackups) || 10,
             },
             health: {
@@ -121,15 +125,16 @@ class ConfigInitializer {
      * 获取默认配置
      */
     getDefaultConfig() {
+        const openclawDir = (0, config_1.detectOpenClawDir)();
         return {
             openclaw: {
-                dir: '/root/.openclaw',
-                sessions_dir: '/root/.openclaw/agents/main/sessions',
+                dir: openclawDir,
+                sessions_dir: (0, config_1.getDefaultSessionsDir)(openclawDir),
                 gateway_port: 3000,
             },
             backup: {
                 enabled: true,
-                dir: '/root/.openclaw/backups',
+                dir: (0, config_1.getDefaultBackupDir)(openclawDir),
                 max_backups: 10,
             },
             health: {
@@ -214,10 +219,9 @@ class ConfigInitializer {
      * 自动检测配置
      */
     autoDetectConfig() {
-        const homeDir = process.env.HOME || '/root';
-        const openclawDir = path.join(homeDir, '.openclaw');
+        const openclawDir = (0, config_1.detectOpenClawDir)();
         // 检测 sessions 目录
-        let sessionsDir = path.join(openclawDir, 'agents', 'main', 'sessions');
+        let sessionsDir = (0, config_1.getDefaultSessionsDir)(openclawDir);
         if (!fs.existsSync(sessionsDir)) {
             // 尝试其他可能的路径
             const alternatives = [
@@ -239,7 +243,7 @@ class ConfigInitializer {
             },
             backup: {
                 enabled: true,
-                dir: path.join(openclawDir, 'backups'),
+                dir: (0, config_1.getDefaultBackupDir)(openclawDir),
                 max_backups: 10,
             },
             health: {

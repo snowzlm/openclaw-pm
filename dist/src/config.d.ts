@@ -2,9 +2,19 @@
  * OpenClaw PM v4.0.0 - TypeScript Core
  * 配置管理
  */
+export declare function detectOpenClawDir(): string;
+export declare function getDefaultConfigPath(): string;
+export declare function getDefaultSessionsDir(openclawDir?: string): string;
+export declare function getDefaultWorkspaceDir(openclawDir?: string): string;
+export declare function getDefaultBackupDir(openclawDir?: string): string;
+export declare function getDefaultCacheDir(openclawDir?: string): string;
 export interface OpenClawConfig {
     openclaw: {
         dir: string;
+        sessions_dir?: string;
+        queue_dir?: string;
+        logs_dir?: string;
+        workspace_dir?: string;
         gateway_port: number;
         gateway_timeout: number;
         gateway_token?: string;
@@ -18,7 +28,8 @@ export interface OpenClawConfig {
     backup: {
         enabled: boolean;
         max_backups: number;
-        backup_dir: string;
+        backup_dir?: string;
+        dir?: string;
     };
     notification: {
         enabled: boolean;
@@ -38,7 +49,6 @@ export declare class ConfigManager {
     private configPath;
     private config;
     constructor(configPath?: string);
-    private getDefaultConfigPath;
     /**
      * 加载配置文件
      */

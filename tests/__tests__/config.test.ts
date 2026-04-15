@@ -1,4 +1,12 @@
-import { ConfigManager } from '../../src/config';
+import {
+  ConfigManager,
+  getDefaultConfigPath,
+  detectOpenClawDir,
+  getDefaultSessionsDir,
+  getDefaultWorkspaceDir,
+  getDefaultBackupDir,
+  getDefaultCacheDir,
+} from '../../src/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -6,10 +14,19 @@ import * as os from 'os';
 describe('ConfigManager', () => {
   let tempConfigPath: string;
   let config: ConfigManager;
+  let originalOpenclawDir: string | undefined;
+  let originalHome: string | undefined;
+  let originalCwd: string;
+  let tempRootDir: string;
 
   beforeEach(() => {
+    originalOpenclawDir = process.env.OPENCLAW_DIR;
+    originalHome = process.env.HOME;
+    originalCwd = process.cwd();
+    tempRootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-pm-config-'));
+
     // 创建临时配置文件
-    tempConfigPath = path.join(os.tmpdir(), `test-config-${Date.now()}.json`);
+    tempConfigPath = path.join(tempRootDir, 'test-config.json');
     const testConfig = {
       openclaw: {
         dir: '/tmp/test-openclaw',
@@ -27,10 +44,50 @@ describe('ConfigManager', () => {
   });
 
   afterEach(() => {
-    // 清理临时文件
-    if (fs.existsSync(tempConfigPath)) {
-      fs.unlinkSync(tempConfigPath);
+    if (originalOpenclawDir === undefined) {
+      delete process.env.OPENCLAW_DIR;
+    } else {
+      process.env.OPENCLAW_DIR = originalOpenclawDir;
     }
+
+    if (originalHome === undefined) {
+      delete process.env.HOME;
+    } else {
+      process.env.HOME = originalHome;
+    }
+
+    process.chdir(originalCwd);
+    jest.restoreAllMocks();
+
+    if (fs.existsSync(tempRootDir)) {
+      fs.rmSync(tempRootDir, { recursive: true, force: true });
+    }
+  });
+
+  describe('default path detection', () => {
+    test('should use OPENCLAW_DIR for default config path', () => {
+      process.env.OPENCLAW_DIR = path.join(tempRootDir, '.openclaw-custom');
+      expect(getDefaultConfigPath()).toBe(
+        path.join(process.env.OPENCLAW_DIR, 'pm-config.json')
+      );
+    });
+
+    test('should auto-detect an absolute OpenClaw directory when env is not set', () => {
+      delete process.env.OPENCLAW_DIR;
+
+      const detected = detectOpenClawDir();
+
+      expect(path.isAbsolute(detected)).toBe(true);
+      expect(detected.endsWith('.openclaw')).toBe(true);
+    });
+
+    test('should build helper paths from detected OpenClaw directory', () => {
+      const baseDir = path.join(tempRootDir, '.openclaw-runtime');
+      expect(getDefaultSessionsDir(baseDir)).toBe(path.join(baseDir, 'agents', 'main', 'sessions'));
+      expect(getDefaultWorkspaceDir(baseDir)).toBe(path.join(baseDir, 'workspace'));
+      expect(getDefaultBackupDir(baseDir)).toBe(path.join(baseDir, 'backups'));
+      expect(getDefaultCacheDir(baseDir)).toBe(path.join(baseDir, 'pm-cache'));
+    });
   });
 
   describe('load', () => {
@@ -85,6 +142,17 @@ describe('ConfigManager', () => {
       const newConfig = new ConfigManager(tempConfigPath);
       expect(newConfig.get('openclaw.gateway_port')).toBe(5000);
     });
+
+    test('should create parent directory if not exists', () => {
+      const nestedConfigPath = path.join(tempRootDir, 'nested', 'deep', 'pm-config.json');
+      const nestedConfig = new ConfigManager(nestedConfigPath);
+      const configData = config.getAll();
+
+      nestedConfig.save(configData);
+
+      expect(fs.existsSync(nestedConfigPath)).toBe(true);
+      expect(new ConfigManager(nestedConfigPath).get('openclaw.dir')).toBe('/tmp/test-openclaw');
+    });
   });
 
   describe('getAll', () => {
@@ -110,6 +178,33 @@ describe('ConfigManager', () => {
       // 重新创建 ConfigManager 实例来加载新配置
       config = new ConfigManager(tempConfigPath);
       expect(config.get('openclaw.gateway_port')).toBe(6000);
+    });
+  });
+
+  describe('createDefault', () => {
+    test('should create default config with detected OpenClaw directories', () => {
+      const detectedDir = path.join(tempRootDir, '.openclaw-detected');
+      process.env.OPENCLAW_DIR = detectedDir;
+      const outputPath = path.join(tempRootDir, 'generated', 'pm-config.json');
+
+      const created = ConfigManager.createDefault(outputPath);
+
+      expect(fs.existsSync(outputPath)).toBe(true);
+      expect(created.openclaw.dir).toBe(detectedDir);
+      expect(created.openclaw.sessions_dir).toBe(path.join(detectedDir, 'agents', 'main', 'sessions'));
+      expect(created.openclaw.workspace_dir).toBe(path.join(detectedDir, 'workspace'));
+      expect(created.backup.backup_dir).toBe(path.join(detectedDir, 'backups'));
+      expect(created.cron_tasks.length).toBeGreaterThan(0);
+    });
+
+    test('should create output directory when generating default config', () => {
+      process.env.OPENCLAW_DIR = path.join(tempRootDir, '.openclaw');
+      const outputPath = path.join(tempRootDir, 'a', 'b', 'c', 'pm-config.json');
+
+      ConfigManager.createDefault(outputPath);
+
+      expect(fs.existsSync(path.dirname(outputPath))).toBe(true);
+      expect(fs.existsSync(outputPath)).toBe(true);
     });
   });
 });

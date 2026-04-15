@@ -72,6 +72,22 @@ describe('IncrementalAnalyzer', () => {
       expect(result.newErrors).toBe(0);
       expect(result.totalProcessed).toBe(0);
     });
+
+    it('should count sent messages and gateway stop events', () => {
+      fs.writeFileSync(
+        testLogFile,
+        '[2026-04-15T10:00:00.000Z] INFO: sent message\n' +
+          '[2026-04-15T10:01:00.000Z] INFO: outbound message\n' +
+          '[2026-04-15T10:02:00.000Z] INFO: Gateway stopping\n' +
+          '[2026-04-15T10:03:00.000Z] INFO: Gateway stopped\n'
+      );
+
+      const result = analyzer.analyzeIncremental(testLogFile);
+
+      expect(result.checkpoint.stats.messagesSent).toBe(2);
+      expect(result.checkpoint.stats.gatewayStops).toBe(2);
+      expect(result.newGatewayEvents).toBe(2);
+    });
   });
 
   describe('checkpoint management', () => {
@@ -83,6 +99,17 @@ describe('IncrementalAnalyzer', () => {
       expect(checkpoint).not.toBeNull();
       expect(checkpoint!.logFile).toBe(testLogFile);
       expect(checkpoint!.lastOffset).toBeGreaterThan(0);
+    });
+
+    it('should return null for corrupted checkpoint file', () => {
+      fs.writeFileSync(testLogFile, 'Line 1\n');
+      analyzer.analyzeIncremental(testLogFile);
+
+      const checkpointDir = path.join(testDir, 'checkpoints');
+      const checkpointFile = fs.readdirSync(checkpointDir)[0];
+      fs.writeFileSync(path.join(checkpointDir, checkpointFile), '{invalid json');
+
+      expect(analyzer.loadCheckpoint(testLogFile)).toBeNull();
     });
 
     it('should reset checkpoint', () => {
@@ -125,6 +152,63 @@ describe('IncrementalAnalyzer', () => {
 
       const deletedCount = analyzer.cleanupOldCheckpoints(7);
       expect(deletedCount).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should delete corrupted checkpoint files during cleanup', () => {
+      const checkpointDir = path.join(testDir, 'checkpoints');
+      fs.mkdirSync(checkpointDir, { recursive: true });
+      fs.writeFileSync(path.join(checkpointDir, 'checkpoint-broken.json'), '{invalid json');
+
+      const deletedCount = analyzer.cleanupOldCheckpoints(7);
+      expect(deletedCount).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('getCheckpointStats', () => {
+    it('should calculate oldest and newest checkpoints', () => {
+      const oldLog = path.join(testDir, 'old.log');
+      const newLog = path.join(testDir, 'new.log');
+
+      analyzer.saveCheckpoint({
+        logFile: oldLog,
+        lastOffset: 10,
+        lastLineNumber: 1,
+        lastTimestamp: '2026-04-15T10:00:00.000Z',
+        stats: { messagesReceived: 1, messagesSent: 0, errors: 0, gatewayStarts: 0, gatewayStops: 0 },
+        updatedAt: 1000,
+      });
+      analyzer.saveCheckpoint({
+        logFile: newLog,
+        lastOffset: 20,
+        lastLineNumber: 2,
+        lastTimestamp: '2026-04-15T11:00:00.000Z',
+        stats: { messagesReceived: 2, messagesSent: 1, errors: 0, gatewayStarts: 1, gatewayStops: 0 },
+        updatedAt: 2000,
+      });
+
+      const stats = analyzer.getCheckpointStats();
+      expect(stats.totalCheckpoints).toBeGreaterThanOrEqual(2);
+      expect(stats.totalSize).toBeGreaterThan(0);
+      expect(stats.oldestCheckpoint).toBe(oldLog);
+      expect(stats.newestCheckpoint).toBe(newLog);
+    });
+
+    it('should ignore corrupted checkpoints when collecting stats', () => {
+      analyzer.saveCheckpoint({
+        logFile: path.join(testDir, 'valid.log'),
+        lastOffset: 20,
+        lastLineNumber: 2,
+        lastTimestamp: '2026-04-15T11:00:00.000Z',
+        stats: { messagesReceived: 2, messagesSent: 1, errors: 0, gatewayStarts: 1, gatewayStops: 0 },
+        updatedAt: 2000,
+      });
+
+      const checkpointDir = path.join(testDir, 'checkpoints');
+      fs.writeFileSync(path.join(checkpointDir, 'checkpoint-bad.json'), '{invalid json');
+
+      const stats = analyzer.getCheckpointStats();
+      expect(stats.totalCheckpoints).toBeGreaterThanOrEqual(2);
+      expect(stats.newestCheckpoint).toBe(path.join(testDir, 'valid.log'));
     });
   });
 });

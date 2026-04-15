@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as readline from 'readline';
 import chalk from 'chalk';
 import { Logger } from './logger';
+import { detectOpenClawDir, getDefaultSessionsDir, getDefaultBackupDir } from './config';
 
 export interface ConfigInitOptions {
   interactive?: boolean;
@@ -19,17 +20,12 @@ export class ConfigInitializer {
   /**
    * 初始化配置文件
    */
-  async initConfig(
-    configPath: string,
-    options: ConfigInitOptions = {}
-  ): Promise<void> {
+  async initConfig(configPath: string, options: ConfigInitOptions = {}): Promise<void> {
     // 检查配置文件是否已存在
     if (fs.existsSync(configPath) && !options.force) {
       console.log(chalk.yellow('⚠ 配置文件已存在'));
       console.log(chalk.gray(`  路径: ${configPath}`));
-      console.log(
-        chalk.gray('  使用 --force 参数强制覆盖')
-      );
+      console.log(chalk.gray('  使用 --force 参数强制覆盖'));
       return;
     }
 
@@ -66,45 +62,36 @@ export class ConfigInitializer {
 
     console.log(chalk.bold.cyan('\n📝 OpenClaw PM 配置向导\n'));
 
+    const detectedOpenClawDir = detectOpenClawDir();
+    const detectedSessionsDir = getDefaultSessionsDir(detectedOpenClawDir);
+    const detectedBackupDir = getDefaultBackupDir(detectedOpenClawDir);
+
     // OpenClaw 目录
-    const openclawDir = await question(
-      chalk.cyan('OpenClaw 数据目录 [/root/.openclaw]: ')
-    );
+    const openclawDir = await question(chalk.cyan(`OpenClaw 数据目录 [${detectedOpenClawDir}]: `));
 
     // Sessions 目录
-    const sessionsDir = await question(
-      chalk.cyan(
-        'Sessions 目录 [/root/.openclaw/agents/main/sessions]: '
-      )
-    );
+    const sessionsDir = await question(chalk.cyan(`Sessions 目录 [${detectedSessionsDir}]: `));
 
     // Gateway 端口
-    const gatewayPort = await question(
-      chalk.cyan('Gateway 端口 [3000]: ')
-    );
+    const gatewayPort = await question(chalk.cyan('Gateway 端口 [3000]: '));
 
     // 备份目录
-    const backupDir = await question(
-      chalk.cyan('备份目录 [/root/.openclaw/backups]: ')
-    );
+    const backupDir = await question(chalk.cyan(`备份目录 [${detectedBackupDir}]: `));
 
     // 最大备份数
-    const maxBackups = await question(
-      chalk.cyan('最大备份数 [10]: ')
-    );
+    const maxBackups = await question(chalk.cyan('最大备份数 [10]: '));
 
     rl.close();
 
     return {
       openclaw: {
-        dir: openclawDir || '/root/.openclaw',
-        sessions_dir:
-          sessionsDir || '/root/.openclaw/agents/main/sessions',
+        dir: openclawDir || detectedOpenClawDir,
+        sessions_dir: sessionsDir || detectedSessionsDir,
         gateway_port: parseInt(gatewayPort) || 3000,
       },
       backup: {
         enabled: true,
-        dir: backupDir || '/root/.openclaw/backups',
+        dir: backupDir || detectedBackupDir,
         max_backups: parseInt(maxBackups) || 10,
       },
       health: {
@@ -124,15 +111,16 @@ export class ConfigInitializer {
    * 获取默认配置
    */
   private getDefaultConfig(): Record<string, unknown> {
+    const openclawDir = detectOpenClawDir();
     return {
       openclaw: {
-        dir: '/root/.openclaw',
-        sessions_dir: '/root/.openclaw/agents/main/sessions',
+        dir: openclawDir,
+        sessions_dir: getDefaultSessionsDir(openclawDir),
         gateway_port: 3000,
       },
       backup: {
         enabled: true,
-        dir: '/root/.openclaw/backups',
+        dir: getDefaultBackupDir(openclawDir),
         max_backups: 10,
       },
       health: {
@@ -167,17 +155,11 @@ export class ConfigInitializer {
         errors.push('openclaw.dir 必须是字符串');
       }
 
-      if (
-        !openclaw.sessions_dir ||
-        typeof openclaw.sessions_dir !== 'string'
-      ) {
+      if (!openclaw.sessions_dir || typeof openclaw.sessions_dir !== 'string') {
         errors.push('openclaw.sessions_dir 必须是字符串');
       }
 
-      if (
-        !openclaw.gateway_port ||
-        typeof openclaw.gateway_port !== 'number'
-      ) {
+      if (!openclaw.gateway_port || typeof openclaw.gateway_port !== 'number') {
         errors.push('openclaw.gateway_port 必须是数字');
       }
     }
@@ -196,10 +178,7 @@ export class ConfigInitializer {
         errors.push('backup.dir 必须是字符串');
       }
 
-      if (
-        !backup.max_backups ||
-        typeof backup.max_backups !== 'number'
-      ) {
+      if (!backup.max_backups || typeof backup.max_backups !== 'number') {
         errors.push('backup.max_backups 必须是数字');
       }
     }
@@ -213,9 +192,7 @@ export class ConfigInitializer {
   /**
    * 修复配置
    */
-  repairConfig(
-    config: Record<string, unknown>
-  ): Record<string, unknown> {
+  repairConfig(config: Record<string, unknown>): Record<string, unknown> {
     const defaultConfig = this.getDefaultConfig();
 
     // 深度合并配置
@@ -226,10 +203,7 @@ export class ConfigInitializer {
       const result = { ...target };
 
       for (const key in source) {
-        if (
-          typeof source[key] === 'object' &&
-          !Array.isArray(source[key])
-        ) {
+        if (typeof source[key] === 'object' && !Array.isArray(source[key])) {
           result[key] = mergeDeep(
             (result[key] as Record<string, unknown>) || {},
             source[key] as Record<string, unknown>
@@ -249,16 +223,10 @@ export class ConfigInitializer {
    * 自动检测配置
    */
   autoDetectConfig(): Record<string, unknown> {
-    const homeDir = process.env.HOME || '/root';
-    const openclawDir = path.join(homeDir, '.openclaw');
+    const openclawDir = detectOpenClawDir();
 
     // 检测 sessions 目录
-    let sessionsDir = path.join(
-      openclawDir,
-      'agents',
-      'main',
-      'sessions'
-    );
+    let sessionsDir = getDefaultSessionsDir(openclawDir);
     if (!fs.existsSync(sessionsDir)) {
       // 尝试其他可能的路径
       const alternatives = [
@@ -282,7 +250,7 @@ export class ConfigInitializer {
       },
       backup: {
         enabled: true,
-        dir: path.join(openclawDir, 'backups'),
+        dir: getDefaultBackupDir(openclawDir),
         max_backups: 10,
       },
       health: {

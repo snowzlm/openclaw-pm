@@ -7,9 +7,81 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
+function uniquePaths(paths: string[]): string[] {
+  return Array.from(new Set(paths.filter(Boolean).map((p) => path.resolve(p))));
+}
+
+function scoreOpenClawDir(dir: string): number {
+  if (!fs.existsSync(dir)) {
+    return 0;
+  }
+
+  let score = 1;
+  const markers = ['openclaw.json', 'pm-config.json', 'agents', 'logs', 'workspace'];
+
+  for (const marker of markers) {
+    if (fs.existsSync(path.join(dir, marker))) {
+      score += 2;
+    }
+  }
+
+  return score;
+}
+
+export function detectOpenClawDir(): string {
+  if (process.env.OPENCLAW_DIR) {
+    return path.resolve(process.env.OPENCLAW_DIR);
+  }
+
+  const homeDir = os.homedir();
+  const candidates = uniquePaths([
+    path.join(homeDir, '.openclaw'),
+    process.env.HOME ? path.join(process.env.HOME, '.openclaw') : '',
+    path.join(process.cwd(), '.openclaw'),
+    '/root/.openclaw',
+  ]);
+
+  let bestCandidate = candidates[0] || path.join(homeDir, '.openclaw');
+  let bestScore = -1;
+
+  for (const candidate of candidates) {
+    const score = scoreOpenClawDir(candidate);
+    if (score > bestScore) {
+      bestCandidate = candidate;
+      bestScore = score;
+    }
+  }
+
+  return bestCandidate;
+}
+
+export function getDefaultConfigPath(): string {
+  return path.join(detectOpenClawDir(), 'pm-config.json');
+}
+
+export function getDefaultSessionsDir(openclawDir: string = detectOpenClawDir()): string {
+  return path.join(openclawDir, 'agents', 'main', 'sessions');
+}
+
+export function getDefaultWorkspaceDir(openclawDir: string = detectOpenClawDir()): string {
+  return path.join(openclawDir, 'workspace');
+}
+
+export function getDefaultBackupDir(openclawDir: string = detectOpenClawDir()): string {
+  return path.join(openclawDir, 'backups');
+}
+
+export function getDefaultCacheDir(openclawDir: string = detectOpenClawDir()): string {
+  return path.join(openclawDir, 'pm-cache');
+}
+
 export interface OpenClawConfig {
   openclaw: {
     dir: string;
+    sessions_dir?: string;
+    queue_dir?: string;
+    logs_dir?: string;
+    workspace_dir?: string;
     gateway_port: number;
     gateway_timeout: number;
     gateway_token?: string;
@@ -23,7 +95,8 @@ export interface OpenClawConfig {
   backup: {
     enabled: boolean;
     max_backups: number;
-    backup_dir: string;
+    backup_dir?: string;
+    dir?: string;
   };
   notification: {
     enabled: boolean;
@@ -45,12 +118,7 @@ export class ConfigManager {
   private config: OpenClawConfig | null = null;
 
   constructor(configPath?: string) {
-    this.configPath = configPath || this.getDefaultConfigPath();
-  }
-
-  private getDefaultConfigPath(): string {
-    const openclawDir = process.env.OPENCLAW_DIR || path.join(os.homedir(), '.openclaw');
-    return path.join(openclawDir, 'pm-config.json');
+    this.configPath = configPath || getDefaultConfigPath();
   }
 
   /**
@@ -133,11 +201,15 @@ export class ConfigManager {
    * 创建默认配置
    */
   static createDefault(configPath: string): OpenClawConfig {
-    const openclawDir = process.env.OPENCLAW_DIR || path.join(os.homedir(), '.openclaw');
+    const openclawDir = detectOpenClawDir();
 
     const defaultConfig: OpenClawConfig = {
       openclaw: {
         dir: openclawDir,
+        sessions_dir: getDefaultSessionsDir(openclawDir),
+        queue_dir: path.join(openclawDir, 'queue'),
+        logs_dir: path.join(openclawDir, 'logs'),
+        workspace_dir: getDefaultWorkspaceDir(openclawDir),
         gateway_port: 3000,
         gateway_timeout: 30,
       },
@@ -150,7 +222,8 @@ export class ConfigManager {
       backup: {
         enabled: true,
         max_backups: 10,
-        backup_dir: path.join(openclawDir, '.backup'),
+        backup_dir: getDefaultBackupDir(openclawDir),
+        dir: getDefaultBackupDir(openclawDir),
       },
       notification: {
         enabled: false,

@@ -170,15 +170,15 @@ tests/__tests__/
 
 ### 配置文件
 
-默认配置文件: `~/.openclaw/pm-config.json`
+默认配置文件：**自动探测**（通常为 `~/.openclaw/pm-config.json`，也可通过 `OPENCLAW_DIR` 环境变量指定）
 
 ```json
 {
   "openclaw": {
-    "dir": "/root/.openclaw",
-    "sessions_dir": "/root/.openclaw/agents/main/sessions",
-    "queue_dir": "/root/.openclaw/queue",
-    "logs_dir": "/root/.openclaw/logs",
+    "dir": "~/.openclaw",
+    "sessions_dir": "~/.openclaw/agents/main/sessions",
+    "queue_dir": "~/.openclaw/queue",
+    "logs_dir": "~/.openclaw/logs",
     "gateway_port": 3000
   },
   "health_check": {
@@ -186,7 +186,7 @@ tests/__tests__/
     "provider_error_threshold": 10
   },
   "backup": {
-    "dir": "/root/.openclaw/backups",
+    "dir": "~/.openclaw/backups",
     "max_backups": 10
   },
   "cron_tasks": []
