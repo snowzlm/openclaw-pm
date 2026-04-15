@@ -1,152 +1,257 @@
 #!/bin/bash
-
-# morning-briefing.sh - 每日晨间简报
-# 一键了解昨晚发生了什么，今天需要关注什么
+# morning-briefing.sh - 晨间简报
+# 优化版本 - 使用统一工具库，跨平台兼容
 
 set -e
 
-# 颜色定义
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+# 加载工具库
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 
-# 获取日期
+# 初始化
+init_common
+
+# 配置
+YESTERDAY=$(get_yesterday)
 TODAY=$(date +%Y-%m-%d)
-YESTERDAY=$(date -d "yesterday" +%Y-%m-%d 2>/dev/null || date -v-1d +%Y-%m-%d)
+YESTERDAY_LOG=$(get_date_log "$YESTERDAY")
+TODAY_LOG=$(get_today_log)
 
-echo -e "${CYAN}🌅 Morning Briefing - $TODAY${NC}"
-echo "=================================================="
-
+# ============================================
 # 1. 系统健康状态
-echo -e "\n${BLUE}📊 System Health${NC}"
-echo "------------------"
+# ============================================
 
-# Gateway 状态
-if pgrep -f "openclaw.*gateway" > /dev/null; then
-    PID=$(pgrep -f "openclaw.*gateway")
-    echo -e "✅ Gateway running (PID: $PID)"
-else
-    echo -e "❌ Gateway not running"
-fi
-
-# Session locks
-LOCK_COUNT=$(find ~/.openclaw/agents/*/sessions/ -name "*.lock" 2>/dev/null | wc -l | tr -d ' ')
-if [ "$LOCK_COUNT" -eq 0 ]; then
-    echo -e "✅ No session locks"
-else
-    echo -e "⚠️  $LOCK_COUNT session lock(s) found"
-fi
-
-# 磁盘空间
-DISK_USAGE=$(df -h ~/.openclaw | tail -1 | awk '{print $5}' | sed 's/%//')
-if [ "$DISK_USAGE" -lt 80 ]; then
-    echo -e "✅ Disk usage: ${DISK_USAGE}%"
-else
-    echo -e "⚠️  Disk usage: ${DISK_USAGE}%"
-fi
-
-# 2. 昨夜活动摘要
-echo -e "\n${PURPLE}🌙 Last Night Activity${NC}"
-echo "------------------------"
-
-LOG_FILE="/tmp/openclaw/openclaw-$YESTERDAY.log"
-if [ -f "$LOG_FILE" ]; then
-    # 消息统计
-    RECEIVED=$(grep -c "received message" "$LOG_FILE" 2>/dev/null || true); RECEIVED=${RECEIVED:-0}
-    COMPLETED=$(grep -c "task done" "$LOG_FILE" 2>/dev/null || true); COMPLETED=${COMPLETED:-0}
-    ERRORS=$(grep -c "task error" "$LOG_FILE" 2>/dev/null || true); ERRORS=${ERRORS:-0}
+print_system_health() {
+    echo -e "${BOLD}${CYAN}📊 系统健康状态${NC}"
+    echo ""
     
-    echo "📨 Messages: $RECEIVED received, $COMPLETED completed, $ERRORS errors"
-    
-    # 检查是否有重启
-    RESTARTS=$(grep -c "Gateway.*start" "$LOG_FILE" 2>/dev/null || true); RESTARTS=${RESTARTS:-0}
-    if [ "$RESTARTS" -gt 0 ] 2>/dev/null; then
-        echo -e "🔄 Gateway restarts: $RESTARTS"
+    # Gateway 状态
+    if is_gateway_running; then
+        local pid=$(get_gateway_pids)
+        echo -e "  ${GREEN}✓${NC} Gateway 运行中 (PID: $pid)"
+    else
+        echo -e "  ${RED}✗${NC} Gateway 未运行"
     fi
     
-    # 检查错误
-    if [ "$ERRORS" -gt 0 ] 2>/dev/null; then
-        echo -e "\n${YELLOW}Recent errors:${NC}"
-        grep "task error" "$LOG_FILE" | tail -3 | sed 's/^/  /'
+    # Lock 文件
+    local lock_count=$(find "$OPENCLAW_DIR"/agents/*/sessions/*.lock 2>/dev/null | wc -l | tr -d ' ')
+    if [[ $lock_count -eq 0 ]]; then
+        echo -e "  ${GREEN}✓${NC} 无 session lock 文件"
+    else
+        echo -e "  ${YELLOW}⚠${NC} $lock_count 个 session lock 文件"
     fi
-else
-    echo "📝 No log file found for $YESTERDAY"
-fi
-
-# 3. Cron 任务状态
-echo -e "\n${GREEN}⏰ Cron Tasks${NC}"
-echo "---------------"
-
-# 调用现有的 cron 检查脚本
-if [ -f "scripts/check-missed-crons.sh" ]; then
-    ./scripts/check-missed-crons.sh --quiet
-else
-    echo "⚠️  Cron check script not found"
-fi
-
-# 4. 待办事项检查
-echo -e "\n${YELLOW}📋 In Progress Tasks${NC}"
-echo "----------------------"
-
-# 检查昨天和今天的 memory 文件
-for DATE in "$YESTERDAY" "$TODAY"; do
-    MEMORY_FILE="memory/$DATE.md"
-    if [ -f "$MEMORY_FILE" ]; then
-        IN_PROGRESS=$(grep -A 20 "## In Progress" "$MEMORY_FILE" 2>/dev/null | grep -E "^### " | grep -v "✅" || true)
-        if [ -n "$IN_PROGRESS" ]; then
-            echo -e "${CYAN}$DATE:${NC}"
-            echo "$IN_PROGRESS" | sed 's/^/  /'
+    
+    # 磁盘空间
+    local usage=$(df -h "$OPENCLAW_DIR" 2>/dev/null | tail -1 | awk '{print $5}' | sed 's/%//')
+    if [[ -n "$usage" ]]; then
+        if [[ $usage -gt 80 ]]; then
+            echo -e "  ${YELLOW}⚠${NC} 磁盘使用率: $usage%"
+        else
+            echo -e "  ${GREEN}✓${NC} 磁盘使用率: $usage%"
         fi
     fi
-done
+    
+    echo ""
+}
 
-if [ -z "$(find memory/ -name "*.md" -exec grep -l "## In Progress" {} \; -exec grep -A 20 "## In Progress" {} \; | grep -E "^### " | grep -v "✅")" ]; then
-    echo "✅ No pending tasks"
-fi
+# ============================================
+# 2. 昨夜活动摘要
+# ============================================
 
+print_yesterday_summary() {
+    echo -e "${BOLD}${CYAN}🌙 昨夜活动摘要 ($YESTERDAY)${NC}"
+    echo ""
+    
+    if [[ ! -f "$YESTERDAY_LOG" ]]; then
+        echo -e "  ${YELLOW}⚠${NC} 昨日日志文件不存在"
+        echo ""
+        return
+    fi
+    
+    # 消息统计
+    local msg_received=$(safe_count "received message" "$YESTERDAY_LOG")
+    local msg_sent=$(safe_count "sent message\|dispatch complete" "$YESTERDAY_LOG")
+    echo -e "  📨 消息: 收到 $msg_received 条, 发送 $msg_sent 条"
+    
+    # Gateway 重启
+    local restart_count=$(safe_count "Gateway starting\|openclaw-gateway.*started" "$YESTERDAY_LOG")
+    if [[ $restart_count -gt 0 ]]; then
+        echo -e "  ${YELLOW}⚠${NC} Gateway 重启: $restart_count 次"
+    fi
+    
+    # 错误统计
+    local error_count=$(safe_count "ERROR\|FailoverError\|All models failed" "$YESTERDAY_LOG")
+    if [[ $error_count -gt 0 ]]; then
+        echo -e "  ${RED}✗${NC} 错误: $error_count 次"
+        
+        # 显示最后一个错误
+        local last_error=$(grep -E "ERROR|FailoverError|All models failed" "$YESTERDAY_LOG" 2>/dev/null | tail -1)
+        if [[ -n "$last_error" ]]; then
+            local error_time=$(echo "$last_error" | grep -oE '[0-9]{2}:[0-9]{2}:[0-9]{2}' | head -1 || echo "unknown")
+            local error_msg=$(echo "$last_error" | sed 's/.*ERROR/ERROR/' | cut -c1-60)
+            echo -e "     最后错误 ($error_time): $error_msg..."
+        fi
+    else
+        echo -e "  ${GREEN}✓${NC} 无错误"
+    fi
+    
+    echo ""
+}
+
+# ============================================
+# 3. Cron 任务状态
+# ============================================
+
+print_cron_status() {
+    echo -e "${BOLD}${CYAN}⏰ Cron 任务状态${NC}"
+    echo ""
+    
+    local cron_check_script="$SCRIPT_DIR/check-missed-crons.sh"
+    if [[ ! -f "$cron_check_script" ]]; then
+        echo -e "  ${YELLOW}⚠${NC} check-missed-crons.sh 不存在"
+        echo ""
+        return
+    fi
+    
+    # 运行 cron 检查
+    local cron_result
+    if cron_result=$("$cron_check_script" --json 2>&1); then
+        if ! check_optional_dependency "jq"; then
+            echo -e "  ${YELLOW}⚠${NC} 无法解析 Cron 检查结果（缺少 jq）"
+            echo ""
+            return
+        fi
+        
+        local ok_count=$(echo "$cron_result" | jq -r '.ok // 0')
+        local missed_count=$(echo "$cron_result" | jq -r '.missed // 0')
+        
+        if [[ $missed_count -eq 0 ]]; then
+            echo -e "  ${GREEN}✓${NC} 所有关键任务已执行 ($ok_count 个)"
+        else
+            echo -e "  ${YELLOW}⚠${NC} $missed_count 个任务未执行:"
+            echo "$cron_result" | jq -r '.jobs[] | select(.status=="missed") | "     - \(.name)"'
+        fi
+    else
+        echo -e "  ${RED}✗${NC} 无法检查 Cron 任务"
+    fi
+    
+    echo ""
+}
+
+# ============================================
+# 4. 待办事项检查
+# ============================================
+
+print_todo_check() {
+    echo -e "${BOLD}${CYAN}📝 待办事项${NC}"
+    echo ""
+    
+    local memory_file="$OPENCLAW_DIR/workspace/memory/$TODAY.md"
+    if [[ ! -f "$memory_file" ]]; then
+        echo -e "  ${GREEN}✓${NC} 今日 memory 文件不存在，无待办事项"
+        echo ""
+        return
+    fi
+    
+    # 查找 "## In Progress" 部分
+    local in_progress=$(sed -n '/^## In Progress/,/^##/p' "$memory_file" | grep -v "^##")
+    
+    if [[ -z "$in_progress" ]] || echo "$in_progress" | grep -q "（无）"; then
+        echo -e "  ${GREEN}✓${NC} 无进行中任务"
+    else
+        echo -e "  ${YELLOW}⚠${NC} 发现进行中任务:"
+        echo "$in_progress" | grep "^###" | sed 's/^###/     -/'
+    fi
+    
+    echo ""
+}
+
+# ============================================
 # 5. 今日建议
-echo -e "\n${CYAN}💡 Today's Recommendations${NC}"
-echo "----------------------------"
+# ============================================
 
-# 基于发现的问题给出建议
-SUGGESTIONS=()
+print_suggestions() {
+    echo -e "${BOLD}${CYAN}💡 今日建议${NC}"
+    echo ""
+    
+    local suggestions=()
+    
+    # 检查 Gateway 状态
+    if ! is_gateway_running; then
+        suggestions+=("启动 Gateway: openclaw gateway start")
+    fi
+    
+    # 检查 Lock 文件
+    local lock_count=$(find "$OPENCLAW_DIR"/agents/*/sessions/*.lock 2>/dev/null | wc -l | tr -d ' ')
+    if [[ $lock_count -gt 0 ]]; then
+        suggestions+=("清理 Lock 文件: $SCRIPT_DIR/gateway-health-check.sh")
+    fi
+    
+    # 检查未回复消息
+    local unanswered_script="$SCRIPT_DIR/check-unanswered.sh"
+    if [[ -f "$unanswered_script" ]]; then
+        local unanswered_count=$("$unanswered_script" --json 2>/dev/null | jq -r '.count // 0' || echo "0")
+        if [[ $unanswered_count -gt 0 ]]; then
+            suggestions+=("检查未回复消息: $unanswered_script --verbose")
+        fi
+    fi
+    
+    # 检查错误日志
+    if [[ -f "$YESTERDAY_LOG" ]]; then
+        local error_count=$(safe_count "ERROR\|FailoverError" "$YESTERDAY_LOG")
+        if [[ $error_count -gt 5 ]]; then
+            suggestions+=("检查昨日错误日志: tail -100 $YESTERDAY_LOG | grep ERROR")
+        fi
+    fi
+    
+    # 输出建议
+    if [[ ${#suggestions[@]} -eq 0 ]]; then
+        echo -e "  ${GREEN}✓${NC} 一切正常，无需特别关注"
+    else
+        for suggestion in "${suggestions[@]}"; do
+            echo -e "  ${YELLOW}→${NC} $suggestion"
+        done
+    fi
+    
+    echo ""
+}
 
-if [ "$LOCK_COUNT" -gt 0 ]; then
-    SUGGESTIONS+=("🔧 Run cleanup-stale-locks.sh to clear session locks")
-fi
+# ============================================
+# 6. 快速操作命令
+# ============================================
 
-if [ "$DISK_USAGE" -gt 80 ]; then
-    SUGGESTIONS+=("🧹 Clean up old log files and temporary data")
-fi
+print_quick_commands() {
+    echo -e "${BOLD}${CYAN}⚡ 快速操作${NC}"
+    echo ""
+    echo "  快速诊断:    $SCRIPT_DIR/quick-diagnose.sh"
+    echo "  健康检查:    $SCRIPT_DIR/gateway-health-check.sh"
+    echo "  未回复消息:  $SCRIPT_DIR/check-unanswered.sh"
+    echo "  Cron 任务:   $SCRIPT_DIR/check-missed-crons.sh"
+    echo "  每日统计:    $SCRIPT_DIR/daily-stats.sh"
+    echo ""
+}
 
-if [ "$ERRORS" -gt 5 ]; then
-    SUGGESTIONS+=("🔍 Investigate recent errors with quick-diagnose.sh")
-fi
+# ============================================
+# 主函数
+# ============================================
 
-# 检查是否需要 context 管理
-CONTEXT_USAGE=$(openclaw session status 2>/dev/null | grep -o "[0-9]*%" | head -1 | sed 's/%//' || echo "0")
-if [ "$CONTEXT_USAGE" -gt 80 ]; then
-    SUGGESTIONS+=("🧠 Context usage ${CONTEXT_USAGE}% - consider archiving completed tasks")
-fi
+main() {
+    print_separator "="
+    echo -e "${BOLD}${CYAN}☀️  OpenClaw 晨间简报${NC}"
+    echo -e "   $(date '+%Y-%m-%d %H:%M:%S')"
+    print_separator "="
+    echo ""
+    
+    print_system_health
+    print_yesterday_summary
+    print_cron_status
+    print_todo_check
+    print_suggestions
+    print_quick_commands
+    
+    print_separator "="
+    echo -e "${GREEN}祝你今天工作顺利！${NC}"
+    print_separator "="
+}
 
-if [ ${#SUGGESTIONS[@]} -eq 0 ]; then
-    echo "✨ All systems green! Ready for a productive day."
-else
-    for suggestion in "${SUGGESTIONS[@]}"; do
-        echo "  $suggestion"
-    done
-fi
-
-# 6. 快速操作
-echo -e "\n${BLUE}🚀 Quick Actions${NC}"
-echo "------------------"
-echo "  ./scripts/quick-diagnose.sh     - Full system diagnosis"
-echo "  ./scripts/daily-stats.sh        - Yesterday's detailed stats"
-echo "  ./scripts/check-missed-crons.sh - Check and run missed crons"
-echo "  openclaw session status         - Current session status"
-
-echo -e "\n${GREEN}Have a great day! 🌟${NC}"
+main

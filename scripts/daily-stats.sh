@@ -1,181 +1,306 @@
 #!/bin/bash
-# daily-stats.sh - 显示今日 OpenClaw 活动统计
-# 用法: ./daily-stats.sh [日期]
-# 日期格式: YYYY-MM-DD (默认今天)
+# daily-stats.sh - 每日活动统计
+# 优化版本 - 使用统一工具库，跨平台兼容
 
 set -e
 
-# 颜色定义
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+# 加载工具库
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
+
+# 初始化
+init_common
 
 # 配置
-DATE="${1:-$(date +%Y-%m-%d)}"
-GATEWAY_LOG="$HOME/.openclaw/logs/gateway.log"
-TOOL_LOG="/tmp/openclaw/openclaw-${DATE}.log"
+TARGET_DATE="${1:-$(date +%Y-%m-%d)}"
+TARGET_LOG=$(get_date_log "$TARGET_DATE")
 
-# 检查 gateway.log 是否存在
-if [ ! -f "$GATEWAY_LOG" ]; then
-    echo -e "${RED}Gateway 日志文件不存在: $GATEWAY_LOG${NC}"
+# 检查日志文件
+if [[ ! -f "$TARGET_LOG" ]]; then
+    echo -e "${RED}✗${NC} 日志文件不存在: $TARGET_LOG"
     exit 1
 fi
 
-echo -e "${BOLD}📊 OpenClaw 活动统计 - ${DATE}${NC}"
-echo ""
+# ============================================
+# 1. 基本统计
+# ============================================
 
-# 提取今天的日志
-TODAY_LOGS=$(grep "^${DATE}" "$GATEWAY_LOG" 2>/dev/null || true)
-
-if [ -z "$TODAY_LOGS" ]; then
-    echo -e "${YELLOW}今日暂无日志记录${NC}"
-    exit 0
-fi
-
-# 辅助函数：安全计数
-safe_count() {
-    local pattern="$1"
-    local result
-    result=$(echo "$TODAY_LOGS" | grep -c "$pattern" 2>/dev/null) || result=0
-    printf '%d' "$result"
+print_basic_stats() {
+    echo -e "${BOLD}${CYAN}📊 基本统计${NC}"
+    echo ""
+    
+    local msg_received=$(safe_count "received message" "$TARGET_LOG")
+    local msg_sent=$(safe_count "sent message\|dispatch complete" "$TARGET_LOG")
+    local sessions=$(grep "received message" "$TARGET_LOG" 2>/dev/null | grep -oE 'session:[a-zA-Z0-9-]+' | sort -u | wc -l | tr -d ' ')
+    
+    echo "  📨 消息接收: $msg_received 条"
+    echo "  📤 消息发送: $msg_sent 条"
+    echo "  💬 活跃会话: $sessions 个"
+    echo ""
 }
 
-# 1. 消息统计
-echo -e "${CYAN}━━━ 消息统计 ━━━${NC}"
-msg_received=$(safe_count "received message")
-msg_enqueued=$(safe_count "lane enqueue")
-msg_completed=$(safe_count "lane task done")
-msg_errors=$(safe_count "lane task error")
-
-echo -e "  收到消息: ${GREEN}${msg_received}${NC}"
-echo -e "  入队处理: ${GREEN}${msg_enqueued}${NC}"
-echo -e "  成功完成: ${GREEN}${msg_completed}${NC}"
-if [ "$msg_errors" -gt 0 ] 2>/dev/null; then
-    echo -e "  处理失败: ${RED}${msg_errors}${NC}"
-else
-    echo -e "  处理失败: ${GREEN}0${NC}"
-fi
-
-# 计算成功率
-if [ "$msg_enqueued" -gt 0 ] 2>/dev/null; then
-    success_rate=$(echo "scale=1; $msg_completed * 100 / $msg_enqueued" | bc 2>/dev/null || echo "N/A")
-    echo -e "  成功率: ${GREEN}${success_rate}%${NC}"
-fi
-echo ""
-
+# ============================================
 # 2. 按小时分布
-echo -e "${CYAN}━━━ 消息时段分布 ━━━${NC}"
-for hour in $(seq -w 0 23); do
-    count=$(echo "$TODAY_LOGS" | grep "received message" | grep -c "T${hour}:" 2>/dev/null || echo "0")
-    if [ "$count" -gt 0 ] 2>/dev/null; then
-        bar_len=$((count > 20 ? 20 : count))
-        bar=$(printf '█%.0s' $(seq 1 $bar_len))
-        echo -e "  ${hour}:00  ${BLUE}${bar}${NC} ${count}"
-    fi
-done
-echo ""
+# ============================================
 
-# 3. 按 Agent 分布
-echo -e "${CYAN}━━━ Agent 活动 ━━━${NC}"
-for agent in main content business ops; do
-    count=$(echo "$TODAY_LOGS" | grep "received message" | grep -c "feishu\[$agent\]" 2>/dev/null || echo "0")
-    if [ "$count" -gt 0 ] 2>/dev/null; then
-        echo -e "  ${agent}: ${GREEN}${count}${NC} 条消息"
-    fi
-done
-echo ""
-
-# 4. 错误分析（从 tool log）
-echo -e "${CYAN}━━━ 错误分析 ━━━${NC}"
-if [ -f "$TOOL_LOG" ]; then
-    failover_errors=$(grep -c "FailoverError\|All models failed" "$TOOL_LOG" 2>/dev/null || echo "0")
-    timeout_errors=$(grep -c "timed out" "$TOOL_LOG" 2>/dev/null || echo "0")
-    tool_errors=$(grep -c '\[tools\].*failed' "$TOOL_LOG" 2>/dev/null || echo "0")
-else
-    failover_errors=0
-    timeout_errors=0
-    tool_errors=0
-fi
-
-lock_errors=$(safe_count "session file locked")
-
-if [ "$failover_errors" -gt 0 ] 2>/dev/null; then
-    echo -e "  Provider 错误: ${RED}${failover_errors}${NC}"
-else
-    echo -e "  Provider 错误: ${GREEN}0${NC}"
-fi
-
-if [ "$timeout_errors" -gt 0 ] 2>/dev/null; then
-    echo -e "  超时错误: ${YELLOW}${timeout_errors}${NC}"
-else
-    echo -e "  超时错误: ${GREEN}0${NC}"
-fi
-
-if [ "$lock_errors" -gt 0 ] 2>/dev/null; then
-    echo -e "  Session Lock: ${YELLOW}${lock_errors}${NC}"
-else
-    echo -e "  Session Lock: ${GREEN}0${NC}"
-fi
-
-if [ "$tool_errors" -gt 0 ] 2>/dev/null; then
-    echo -e "  工具调用失败: ${YELLOW}${tool_errors}${NC}"
-else
-    echo -e "  工具调用失败: ${GREEN}0${NC}"
-fi
-echo ""
-
-# 5. Gateway 状态
-echo -e "${CYAN}━━━ Gateway 状态 ━━━${NC}"
-restarts=$(safe_count "Gateway started")
-echo -e "  重启次数: ${restarts}"
-
-ws_connects=$(safe_count "WebSocket client started")
-echo -e "  飞书连接: ${ws_connects} 次"
-echo ""
-
-# 6. 响应时间估算
-echo -e "${CYAN}━━━ 响应时间 ━━━${NC}"
-typing_added=$(safe_count "added typing")
-typing_removed=$(safe_count "removed typing")
-
-echo -e "  开始处理: ${typing_added} 次"
-echo -e "  完成处理: ${typing_removed} 次"
-echo ""
-
-# 7. 最近的错误
-if [ -f "$TOOL_LOG" ]; then
-    recent_errors=$(grep -E "ERROR|error.*failed" "$TOOL_LOG" 2>/dev/null | tail -3 || true)
-    if [ -n "$recent_errors" ]; then
-        echo -e "${CYAN}━━━ 最近的错误 ━━━${NC}"
-        echo "$recent_errors" | while IFS= read -r line; do
-            # 提取时间和消息
-            time=$(echo "$line" | grep -oE 'T[0-9]{2}:[0-9]{2}:[0-9]{2}' | head -1 | sed 's/T//')
-            msg=$(echo "$line" | grep -oE '\[tools\][^"]+' | head -c 50 || echo "")
-            if [ -n "$time" ] && [ -n "$msg" ]; then
-                echo -e "  ${YELLOW}${time}${NC} ${msg}..."
-            fi
-        done
+print_hourly_distribution() {
+    echo -e "${BOLD}${CYAN}⏰ 按小时分布${NC}"
+    echo ""
+    
+    if ! check_optional_dependency "awk"; then
+        echo -e "  ${YELLOW}⚠${NC} 缺少 awk，跳过小时分布统计"
         echo ""
+        return
     fi
-fi
+    
+    # 提取时间戳并统计每小时的消息数
+    local hourly_data=$(grep "received message" "$TARGET_LOG" 2>/dev/null | \
+        grep -oE '[0-9]{2}:[0-9]{2}:[0-9]{2}' | \
+        cut -d: -f1 | \
+        sort | uniq -c | \
+        awk '{printf "  %02d:00 - %02d:59  ", $2, $2; for(i=0;i<$1;i+=5) printf "█"; printf " (%d)\n", $1}')
+    
+    if [[ -z "$hourly_data" ]]; then
+        echo "  无消息记录"
+    else
+        echo "$hourly_data"
+    fi
+    
+    echo ""
+}
 
-# 8. 总结
-echo -e "${CYAN}━━━ 总结 ━━━${NC}"
-total_issues=$((msg_errors + failover_errors + lock_errors))
-if [ "$total_issues" -eq 0 ] 2>/dev/null; then
-    echo -e "  ${GREEN}✓ 今日运行正常，无重大错误${NC}"
-else
-    echo -e "  ${YELLOW}⚠ 今日共 ${total_issues} 个问题需要关注${NC}"
-fi
+# ============================================
+# 3. 错误分析
+# ============================================
 
-# 显示日志文件大小
-gateway_size=$(du -h "$GATEWAY_LOG" 2>/dev/null | cut -f1)
-echo -e "  Gateway 日志: ${gateway_size}"
-if [ -f "$TOOL_LOG" ]; then
-    tool_size=$(du -h "$TOOL_LOG" 2>/dev/null | cut -f1)
-    echo -e "  工具日志: ${tool_size}"
-fi
+print_error_analysis() {
+    echo -e "${BOLD}${CYAN}❌ 错误分析${NC}"
+    echo ""
+    
+    local total_errors=$(safe_count "ERROR\|FailoverError\|All models failed" "$TARGET_LOG")
+    
+    if [[ $total_errors -eq 0 ]]; then
+        echo -e "  ${GREEN}✓${NC} 无错误记录"
+        echo ""
+        return
+    fi
+    
+    echo "  总错误数: $total_errors"
+    echo ""
+    
+    # 错误类型统计
+    local failover_errors=$(safe_count "FailoverError\|All models failed" "$TARGET_LOG")
+    local timeout_errors=$(safe_count "timed out" "$TARGET_LOG")
+    local connection_errors=$(safe_count "ECONNREFUSED\|ECONNRESET\|ETIMEDOUT" "$TARGET_LOG")
+    local other_errors=$((total_errors - failover_errors - timeout_errors - connection_errors))
+    
+    echo "  错误类型:"
+    if [[ $failover_errors -gt 0 ]]; then
+        echo "    - Failover 错误: $failover_errors"
+    fi
+    if [[ $timeout_errors -gt 0 ]]; then
+        echo "    - 超时错误: $timeout_errors"
+    fi
+    if [[ $connection_errors -gt 0 ]]; then
+        echo "    - 连接错误: $connection_errors"
+    fi
+    if [[ $other_errors -gt 0 ]]; then
+        echo "    - 其他错误: $other_errors"
+    fi
+    
+    echo ""
+    
+    # 最近 3 个错误
+    echo "  最近错误:"
+    grep -E "ERROR|FailoverError|All models failed" "$TARGET_LOG" 2>/dev/null | tail -3 | while read -r line; do
+        local error_time=$(echo "$line" | grep -oE '[0-9]{2}:[0-9]{2}:[0-9]{2}' | head -1 || echo "unknown")
+        local error_msg=$(echo "$line" | sed 's/.*ERROR/ERROR/' | cut -c1-70)
+        echo "    [$error_time] $error_msg..."
+    done
+    
+    echo ""
+}
+
+# ============================================
+# 4. Gateway 状态
+# ============================================
+
+print_gateway_status() {
+    echo -e "${BOLD}${CYAN}🔧 Gateway 状态${NC}"
+    echo ""
+    
+    local start_count=$(safe_count "Gateway starting\|openclaw-gateway.*started" "$TARGET_LOG")
+    local stop_count=$(safe_count "Gateway stopping\|openclaw-gateway.*stopped" "$TARGET_LOG")
+    
+    if [[ $start_count -eq 0 ]]; then
+        echo "  无 Gateway 启动记录"
+    else
+        echo "  启动次数: $start_count"
+        
+        # 显示启动时间
+        grep -E "Gateway starting|openclaw-gateway.*started" "$TARGET_LOG" 2>/dev/null | \
+            grep -oE '[0-9]{2}:[0-9]{2}:[0-9]{2}' | \
+            head -5 | \
+            while read -r time; do
+                echo "    - $time"
+            done
+    fi
+    
+    if [[ $stop_count -gt 0 ]]; then
+        echo "  停止次数: $stop_count"
+    fi
+    
+    echo ""
+}
+
+# ============================================
+# 5. 性能指标
+# ============================================
+
+print_performance_metrics() {
+    echo -e "${BOLD}${CYAN}⚡ 性能指标${NC}"
+    echo ""
+    
+    # 平均响应时间（简化版，基于日志中的时间戳）
+    local dispatch_times=$(grep "dispatch complete" "$TARGET_LOG" 2>/dev/null | wc -l | tr -d ' ')
+    
+    if [[ $dispatch_times -eq 0 ]]; then
+        echo "  无性能数据"
+    else
+        echo "  完成任务数: $dispatch_times"
+        
+        # 检查是否有慢查询
+        local slow_queries=$(grep -E "took [0-9]{4,}ms|took [0-9]+s" "$TARGET_LOG" 2>/dev/null | wc -l | tr -d ' ')
+        if [[ $slow_queries -gt 0 ]]; then
+            echo -e "  ${YELLOW}⚠${NC} 慢查询: $slow_queries 次"
+        fi
+    fi
+    
+    echo ""
+}
+
+# ============================================
+# 6. 渠道统计
+# ============================================
+
+print_channel_stats() {
+    echo -e "${BOLD}${CYAN}📡 渠道统计${NC}"
+    echo ""
+    
+    if ! check_optional_dependency "grep"; then
+        echo "  无法统计渠道信息"
+        echo ""
+        return
+    fi
+    
+    # 统计各渠道的消息数
+    local telegram_count=$(grep "received message" "$TARGET_LOG" 2>/dev/null | grep -c "telegram" || echo "0")
+    local discord_count=$(grep "received message" "$TARGET_LOG" 2>/dev/null | grep -c "discord" || echo "0")
+    local slack_count=$(grep "received message" "$TARGET_LOG" 2>/dev/null | grep -c "slack" || echo "0")
+    local other_count=$(grep "received message" "$TARGET_LOG" 2>/dev/null | grep -cvE "telegram|discord|slack" || echo "0")
+    
+    local has_data=false
+    
+    if [[ $telegram_count -gt 0 ]]; then
+        echo "  Telegram: $telegram_count 条"
+        has_data=true
+    fi
+    if [[ $discord_count -gt 0 ]]; then
+        echo "  Discord: $discord_count 条"
+        has_data=true
+    fi
+    if [[ $slack_count -gt 0 ]]; then
+        echo "  Slack: $slack_count 条"
+        has_data=true
+    fi
+    if [[ $other_count -gt 0 ]]; then
+        echo "  其他: $other_count 条"
+        has_data=true
+    fi
+    
+    if ! $has_data; then
+        echo "  无渠道数据"
+    fi
+    
+    echo ""
+}
+
+# ============================================
+# 7. 总结
+# ============================================
+
+print_summary() {
+    echo -e "${BOLD}${CYAN}📝 总结${NC}"
+    echo ""
+    
+    local msg_received=$(safe_count "received message" "$TARGET_LOG")
+    local error_count=$(safe_count "ERROR\|FailoverError" "$TARGET_LOG")
+    local restart_count=$(safe_count "Gateway starting" "$TARGET_LOG")
+    
+    # 计算健康分数（简化版）
+    local health_score=100
+    
+    if [[ $error_count -gt 0 ]]; then
+        health_score=$((health_score - error_count * 2))
+        [[ $health_score -lt 0 ]] && health_score=0
+    fi
+    
+    if [[ $restart_count -gt 1 ]]; then
+        health_score=$((health_score - (restart_count - 1) * 10))
+        [[ $health_score -lt 0 ]] && health_score=0
+    fi
+    
+    # 输出健康分数
+    if [[ $health_score -ge 90 ]]; then
+        echo -e "  健康分数: ${GREEN}$health_score/100${NC} (优秀)"
+    elif [[ $health_score -ge 70 ]]; then
+        echo -e "  健康分数: ${YELLOW}$health_score/100${NC} (良好)"
+    else
+        echo -e "  健康分数: ${RED}$health_score/100${NC} (需要关注)"
+    fi
+    
+    # 活跃度评估
+    if [[ $msg_received -gt 100 ]]; then
+        echo "  活跃度: 高"
+    elif [[ $msg_received -gt 20 ]]; then
+        echo "  活跃度: 中"
+    else
+        echo "  活跃度: 低"
+    fi
+    
+    # 稳定性评估
+    if [[ $restart_count -eq 0 ]]; then
+        echo "  稳定性: 优秀"
+    elif [[ $restart_count -eq 1 ]]; then
+        echo "  稳定性: 良好"
+    else
+        echo "  稳定性: 需要关注"
+    fi
+    
+    echo ""
+}
+
+# ============================================
+# 主函数
+# ============================================
+
+main() {
+    print_separator "="
+    echo -e "${BOLD}${CYAN}📈 OpenClaw 每日统计${NC}"
+    echo -e "   日期: $TARGET_DATE"
+    echo -e "   日志: $(basename "$TARGET_LOG")"
+    print_separator "="
+    echo ""
+    
+    print_basic_stats
+    print_hourly_distribution
+    print_error_analysis
+    print_gateway_status
+    print_performance_metrics
+    print_channel_stats
+    print_summary
+    
+    print_separator "="
+}
+
+main

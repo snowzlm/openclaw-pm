@@ -1,17 +1,18 @@
 #!/bin/bash
 # quick-diagnose.sh - 快速诊断 OpenClaw 问题
-# 基于 BUG_TRACKER.md 中的问题排查清单
-# 用法: ./quick-diagnose.sh [--json]
+# 优化版本 - 使用统一工具库，跨平台兼容
 
-OPENCLAW_DIR="$HOME/.openclaw"
-TODAY_LOG="/tmp/openclaw/openclaw-$(date +%Y-%m-%d).log"
+set -e
+
+# 加载工具库
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
+
+# 初始化
+init_common
+
+# 配置
 JSON_MODE=false
-
-# 颜色定义
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
 
 # 解析参数
 while [[ $# -gt 0 ]]; do
@@ -22,38 +23,40 @@ while [[ $# -gt 0 ]]; do
 done
 
 # 辅助函数
-print_status() {
+print_status_diag() {
     local status=$1
     local message=$2
     if $JSON_MODE; then
         return
     fi
-    case $status in
-        ok) echo -e "${GREEN}✓${NC} $message" ;;
-        warn) echo -e "${YELLOW}⚠${NC} $message" ;;
-        error) echo -e "${RED}✗${NC} $message" ;;
-        info) echo "  $message" ;;
-    esac
+    print_status "$status" "$message"
 }
 
+# ============================================
 # 1. 检查 Gateway 进程
+# ============================================
+
 check_gateway() {
-    local pids=$(ps aux | grep "[o]penclaw-gateway" | awk '{print $2}' | sort -n)
-    local count=$(echo "$pids" | grep -c . 2>/dev/null || echo 0)
+    local count=$(get_gateway_count)
     
     if [[ $count -eq 0 ]]; then
-        print_status error "Gateway 未运行"
+        print_status_diag error "Gateway 未运行"
         return 1
     elif [[ $count -gt 1 ]]; then
-        print_status warn "发现 $count 个 Gateway 进程 (PIDs: $(echo $pids | tr '\n' ' '))"
+        local pids=$(get_gateway_pids | tr '\n' ' ')
+        print_status_diag warn "发现 $count 个 Gateway 进程 (PIDs: $pids)"
         return 1
     else
-        print_status ok "Gateway 运行中 (PID: $pids)"
+        local pid=$(get_gateway_pids)
+        print_status_diag ok "Gateway 运行中 (PID: $pid)"
         return 0
     fi
 }
 
+# ============================================
 # 2. 检查 Session Lock 文件
+# ============================================
+
 check_session_locks() {
     local lock_count=0
     local stale_count=0
@@ -64,7 +67,12 @@ check_session_locks() {
         [[ -f "$lock_file" ]] || continue
         lock_count=$((lock_count + 1))
         
-        local age_minutes=$(( (now - $(stat -f %m "$lock_file")) / 60 ))
+        local mtime=$(get_file_mtime "$lock_file")
+        if [ -z "$mtime" ]; then
+            continue
+        fi
+        
+        local age_minutes=$(( (now - mtime) / 60 ))
         if [[ $age_minutes -gt 5 ]]; then
             stale_count=$((stale_count + 1))
             stale_list="$stale_list\n  - $(basename "$lock_file") (${age_minutes}min)"
@@ -72,176 +80,195 @@ check_session_locks() {
     done
     
     if [[ $lock_count -eq 0 ]]; then
-        print_status ok "无 session lock 文件"
+        print_status_diag ok "无 session lock 文件"
         return 0
     elif [[ $stale_count -gt 0 ]]; then
-        print_status warn "发现 $stale_count 个可能过期的 lock 文件:"
-        echo -e "$stale_list"
+        print_status_diag warn "发现 $stale_count 个可能过期的 lock 文件:"
+        if ! $JSON_MODE; then
+            echo -e "$stale_list"
+        fi
         return 1
     else
-        print_status ok "$lock_count 个活跃的 session lock"
+        print_status_diag ok "$lock_count 个活跃的 session lock"
         return 0
     fi
 }
 
-# 3. 检查飞书 WebSocket 连接
-check_feishu_connection() {
-    if [[ ! -f "$TODAY_LOG" ]]; then
-        print_status warn "今日日志文件不存在"
-        return 1
-    fi
-    
-    local last_ws=$(grep "WebSocket client started" "$TODAY_LOG" 2>/dev/null | tail -1)
-    
-    if [[ -z "$last_ws" ]]; then
-        print_status error "未找到飞书 WebSocket 连接记录"
-        return 1
-    fi
-    
-    local ws_time=$(echo "$last_ws" | grep -oE '"date":"[^"]+' | sed 's/"date":"//' | head -1)
-    print_status ok "飞书 WebSocket 已连接 (最后连接: ${ws_time:-unknown})"
-    return 0
-}
+# ============================================
+# 3. 检查消息接收
+# ============================================
 
-# 4. 检查消息接收
 check_message_receiving() {
-    if [[ ! -f "$TODAY_LOG" ]]; then
+    local today_log=$(get_today_log)
+    
+    if [[ ! -f "$today_log" ]]; then
+        print_status_diag warn "今日日志文件不存在"
         return 1
     fi
     
-    local msg_count=$(grep -c "received message" "$TODAY_LOG" 2>/dev/null | tr -d '\n' || echo 0)
-    local last_msg=$(grep "received message" "$TODAY_LOG" 2>/dev/null | tail -1 | grep -oE '"date":"[^"]+' | sed 's/"date":"//' | tr -d '\n')
+    local msg_count=$(safe_count "received message" "$today_log")
+    local last_msg=$(grep "received message" "$today_log" 2>/dev/null | tail -1 | grep -oE '[0-9]{2}:[0-9]{2}:[0-9]{2}' | head -1 || echo "unknown")
     
     if [[ $msg_count -eq 0 ]]; then
-        print_status warn "今日未收到任何消息"
+        print_status_diag warn "今日未收到任何消息"
     else
-        print_status ok "今日收到 $msg_count 条消息 (最后: ${last_msg:-unknown})"
+        print_status_diag ok "今日收到 $msg_count 条消息 (最后: $last_msg)"
     fi
     return 0
 }
 
-# 5. 检查队列状态
+# ============================================
+# 4. 检查队列状态
+# ============================================
+
 check_queue_status() {
-    if [[ ! -f "$TODAY_LOG" ]]; then
+    local today_log=$(get_today_log)
+    
+    if [[ ! -f "$today_log" ]]; then
         return 1
     fi
     
-    local enqueue_count=$(grep -c "lane enqueue" "$TODAY_LOG" 2>/dev/null | tr -d '\n' || echo 0)
-    local done_count=$(grep -c "lane task done" "$TODAY_LOG" 2>/dev/null | tr -d '\n' || echo 0)
-    local error_count=$(grep -c "lane task error" "$TODAY_LOG" 2>/dev/null | tr -d '\n' || echo 0)
+    local enqueue_count=$(safe_count "enqueue" "$today_log")
+    local done_count=$(safe_count "task done" "$today_log")
+    local error_count=$(safe_count "task error" "$today_log")
     
     local pending=$((enqueue_count - done_count - error_count))
     [[ $pending -lt 0 ]] && pending=0
     
     if [[ $error_count -gt 0 ]]; then
-        print_status warn "队列: $enqueue_count 入队, $done_count 完成, $error_count 错误"
+        print_status_diag warn "队列: $enqueue_count 入队, $done_count 完成, $error_count 错误"
     else
-        print_status ok "队列: $enqueue_count 入队, $done_count 完成, $pending 待处理"
-    fi
-    
-    # 检查是否有卡住的任务
-    local last_dequeue=$(grep "lane dequeue" "$TODAY_LOG" 2>/dev/null | tail -1)
-    if [[ -n "$last_dequeue" ]]; then
-        local dequeue_time=$(echo "$last_dequeue" | grep -oE '"date":"[^"]+' | sed 's/"date":"//' | sed 's/\..*//')
-        if [[ -n "$dequeue_time" ]]; then
-            local dequeue_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$dequeue_time" +%s 2>/dev/null || echo 0)
-            local now_epoch=$(date +%s)
-            local age_seconds=$((now_epoch - dequeue_epoch))
-            
-            # 检查这个任务是否完成
-            local lane=$(echo "$last_dequeue" | grep -oE 'lane=[^ ]+' | sed 's/lane=//')
-            local has_done=$(grep -E "lane task (done|error).*$lane" "$TODAY_LOG" 2>/dev/null | tail -1)
-            
-            if [[ -z "$has_done" && $age_seconds -gt 180 ]]; then
-                print_status warn "  可能有任务卡住: $lane (${age_seconds}s)"
-            fi
-        fi
+        print_status_diag ok "队列: $enqueue_count 入队, $done_count 完成, $pending 待处理"
     fi
     
     return 0
 }
 
-# 6. 检查 LLM 错误
+# ============================================
+# 5. 检查 LLM 错误
+# ============================================
+
 check_llm_errors() {
-    if [[ ! -f "$TODAY_LOG" ]]; then
+    local today_log=$(get_today_log)
+    
+    if [[ ! -f "$today_log" ]]; then
         return 1
     fi
     
-    local failover_errors=$(grep -c "FailoverError\|All models failed" "$TODAY_LOG" 2>/dev/null | tr -d '\n' || echo 0)
-    local timeout_errors=$(grep -c "timed out" "$TODAY_LOG" 2>/dev/null | tr -d '\n' || echo 0)
+    local failover_errors=$(safe_count "FailoverError\|All models failed" "$today_log")
+    local timeout_errors=$(safe_count "timed out" "$today_log")
     
     if [[ $failover_errors -gt 0 || $timeout_errors -gt 0 ]]; then
-        print_status warn "LLM 错误: $failover_errors 次 failover, $timeout_errors 次超时"
+        print_status_diag warn "LLM 错误: $failover_errors 次 failover, $timeout_errors 次超时"
         
-        local last_error=$(grep -E "FailoverError|All models failed|timed out" "$TODAY_LOG" 2>/dev/null | tail -1)
+        local last_error=$(grep -E "FailoverError|All models failed|timed out" "$today_log" 2>/dev/null | tail -1)
         if [[ -n "$last_error" ]]; then
-            local error_time=$(echo "$last_error" | grep -oE '"date":"[^"]+' | sed 's/"date":"//')
-            print_status info "最后错误: ${error_time:-unknown}"
+            local error_time=$(echo "$last_error" | grep -oE '[0-9]{2}:[0-9]{2}:[0-9]{2}' | head -1 || echo "unknown")
+            if ! $JSON_MODE; then
+                echo "  最后错误: $error_time"
+            fi
         fi
         return 1
     else
-        print_status ok "无 LLM 错误"
+        print_status_diag ok "无 LLM 错误"
         return 0
     fi
 }
 
-# 7. 检查磁盘空间
+# ============================================
+# 6. 检查磁盘空间
+# ============================================
+
 check_disk_space() {
-    local usage=$(df -h "$OPENCLAW_DIR" | tail -1 | awk '{print $5}' | sed 's/%//')
+    local usage=$(df -h "$OPENCLAW_DIR" 2>/dev/null | tail -1 | awk '{print $5}' | sed 's/%//')
+    
+    if [[ -z "$usage" ]]; then
+        print_status_diag warn "无法检查磁盘空间"
+        return 1
+    fi
     
     if [[ $usage -gt 90 ]]; then
-        print_status error "磁盘使用率: $usage%"
+        print_status_diag error "磁盘使用率: $usage%"
         return 1
     elif [[ $usage -gt 80 ]]; then
-        print_status warn "磁盘使用率: $usage%"
+        print_status_diag warn "磁盘使用率: $usage%"
         return 1
     else
-        print_status ok "磁盘使用率: $usage%"
+        print_status_diag ok "磁盘使用率: $usage%"
         return 0
     fi
 }
 
-# 8. 检查健康检查脚本状态
+# ============================================
+# 7. 检查健康检查脚本状态
+# ============================================
+
 check_health_script() {
-    local health_log="$OPENCLAW_DIR/logs/health-check.log"
+    local health_log="$HOME/.openclaw/logs/health-check.log"
     if [[ ! -f "$health_log" ]]; then
-        print_status warn "健康检查日志不存在"
+        print_status_diag warn "健康检查日志不存在"
         return 1
     fi
     
     local last_check=$(tail -1 "$health_log" | grep -oE '\[.*\]' | head -1)
-    local last_result=$(tail -3 "$health_log" | grep -E "All checks passed|Fixed .* issue")
+    local last_result=$(tail -3 "$health_log" | grep -E "All checks passed|Found and fixed")
     
     if [[ -n "$last_result" ]]; then
         if echo "$last_result" | grep -q "All checks passed"; then
-            print_status ok "健康检查正常 $last_check"
+            print_status_diag ok "健康检查正常 $last_check"
         else
-            print_status warn "健康检查发现问题 $last_check"
+            print_status_diag warn "健康检查发现问题 $last_check"
         fi
     else
-        print_status info "健康检查: $last_check"
+        print_status_diag info "健康检查: $last_check"
     fi
     return 0
 }
 
+# ============================================
+# 8. 检查备份状态
+# ============================================
+
+check_backup_status() {
+    if ! is_backup_enabled; then
+        print_status_diag info "备份功能已禁用"
+        return 0
+    fi
+    
+    local backup_dir=$(get_backup_path)
+    if [[ ! -d "$backup_dir" ]]; then
+        print_status_diag warn "备份目录不存在: $backup_dir"
+        return 1
+    fi
+    
+    local backup_count=$(find "$backup_dir" -name "*.bak" 2>/dev/null | wc -l | tr -d ' ')
+    local backup_size=$(du -sh "$backup_dir" 2>/dev/null | cut -f1)
+    
+    print_status_diag ok "备份: $backup_count 个文件, $backup_size"
+    return 0
+}
+
+# ============================================
 # 主函数
+# ============================================
+
 main() {
     local issues=0
     
     if ! $JSON_MODE; then
-        echo "🔍 OpenClaw 快速诊断"
+        print_header "🔍 OpenClaw 快速诊断"
         echo "   $(date '+%Y-%m-%d %H:%M:%S')"
         echo ""
     fi
     
     check_gateway || ((issues++))
     check_session_locks || ((issues++))
-    check_feishu_connection || ((issues++))
     check_message_receiving
     check_queue_status
     check_llm_errors || ((issues++))
     check_disk_space || ((issues++))
     check_health_script
+    check_backup_status
     
     if ! $JSON_MODE; then
         echo ""

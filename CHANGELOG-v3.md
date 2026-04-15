@@ -2,36 +2,38 @@
 
 ## 重大更新
 
-### 新增功能
+### 阶段一：基础优化（2026-04-15）
 
-#### 1. 配置文件系统
+#### 新增功能
+
+**1. 配置文件系统**
 - 新增 `scripts/config.json` 统一配置管理
 - 支持自定义端口、路径、超时时间等
 - 支持从配置文件读取 Cron 任务列表
 
-#### 2. 统一工具库
+**2. 统一工具库**
 - 新增 `scripts/lib/common.sh` 提供跨平台兼容性函数
 - 自动检测操作系统（macOS/Linux）
 - 统一的 API 调用、日志管理、备份管理
 
-#### 3. 配置向导
+**3. 配置向导**
 - 新增 `scripts/setup.sh` 交互式配置向导
 - 自动检测 OpenClaw 安装
 - 引导配置 Cron 任务和通知渠道
 
-#### 4. 备份机制
+**4. 备份机制**
 - 删除文件前自动备份
 - 支持备份清理（保留最近 N 个）
 - 备份路径可配置
 
-#### 5. 通知系统
+**5. 通知系统**
 - 统一的通知接口
 - 支持多渠道通知（Telegram/飞书/邮件）
 - 可配置通知级别（info/warn/error）
 
-### 优化改进
+#### 优化改进
 
-#### 1. gateway-health-check.sh
+**1. gateway-health-check.sh**
 - ✅ 移除外部脚本依赖（fix-sessions.py、detect-stuck-dispatch.py）
 - ✅ 添加跨平台兼容性（macOS/Linux）
 - ✅ 从配置文件读取参数
@@ -39,22 +41,73 @@
 - ✅ 添加通知机制
 - ✅ 简化逻辑，移除复杂的 stuck dispatch 检测
 
-#### 2. check-unanswered.sh
+**2. check-unanswered.sh**
 - ✅ 添加跨平台兼容性
 - ✅ 添加 jq 依赖检查
 - ✅ 新增 `--recover` 参数自动发送恢复通知
 - ✅ 新增 `--agent` 参数过滤特定 agent
 - ✅ 改进 JSON 解析逻辑
 
-#### 3. check-missed-crons.sh
+**3. check-missed-crons.sh**
 - ✅ 从配置文件读取任务列表（不再硬编码）
 - ✅ 添加确认机制（补执行前询问）
 - ✅ 新增 `--yes` 参数跳过确认
 - ✅ 改进错误处理
 
-### 破坏性变更
+---
 
-#### 配置文件位置
+### 阶段二：剩余脚本优化（2026-04-15）
+
+#### 优化改进
+
+**4. heartbeat-check.sh**
+- ✅ 添加跨平台支持
+- ✅ 支持 JSON 输出模式（--json）
+- ✅ 统一使用 lib/common.sh 工具库
+- ✅ 3 项检查：Context Health、进行中任务、Cron 任务
+- ✅ 改进错误处理和依赖检查
+
+**5. quick-diagnose.sh**
+- ✅ 8 项快速诊断
+  - Gateway 进程状态
+  - Session Lock 文件
+  - 消息接收情况
+  - 队列状态
+  - LLM 错误
+  - 磁盘空间
+  - 健康检查脚本状态
+  - 备份状态
+- ✅ 跨平台兼容（macOS/Linux）
+- ✅ 统一使用工具库
+
+**6. morning-briefing.sh**
+- ✅ 完整晨间简报
+  - 系统健康状态
+  - 昨夜活动摘要
+  - Cron 任务状态
+  - 待办事项检查
+  - 今日建议
+  - 快速操作命令
+- ✅ 跨平台支持
+- ✅ 统一使用工具库
+
+**7. daily-stats.sh**
+- ✅ 详细每日统计
+  - 基本统计（消息收发、活跃会话）
+  - 按小时分布（可视化图表）
+  - 错误分析（分类统计）
+  - Gateway 状态
+  - 性能指标
+  - 渠道统计
+  - 健康分数评估
+- ✅ 跨平台支持
+- ✅ 统一使用工具库
+
+---
+
+## 破坏性变更
+
+### 配置文件位置
 - 旧版本：无配置文件，所有参数硬编码
 - 新版本：需要 `scripts/config.json`
 
@@ -68,7 +121,7 @@ cp scripts/config.json.example scripts/config.json
 # 编辑 config.json
 ```
 
-#### Cron 任务列表
+### Cron 任务列表
 - 旧版本：在 `check-missed-crons.sh` 中硬编码
 - 新版本：在 `config.json` 中配置
 
@@ -87,7 +140,9 @@ cp scripts/config.json.example scripts/config.json
 }
 ```
 
-### 已知问题
+---
+
+## 已知问题
 
 1. **thinking-only session 清理**：当前实现会删除最后一条消息，可能导致数据丢失
    - 建议：改为标记而非删除
@@ -99,20 +154,16 @@ cp scripts/config.json.example scripts/config.json
 3. **跨平台测试**：当前只在 Linux 上测试
    - 需要在 macOS 上测试
 
-### 下一步计划
+---
 
-#### v3.1.0
-- [ ] 优化 heartbeat-check.sh
-- [ ] 优化 quick-diagnose.sh
-- [ ] 优化 morning-briefing.sh
-- [ ] 优化 daily-stats.sh
+## 下一步计划
 
-#### v3.2.0
+### v3.1.0
 - [ ] 添加健康检查历史追踪
 - [ ] 添加 Web Dashboard
 - [ ] 添加邮件通知支持
 
-#### v4.0.0
+### v4.0.0
 - [ ] 重构为 TypeScript
 - [ ] 集成到 OpenClaw 核心
 
