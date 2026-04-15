@@ -341,7 +341,7 @@ MIT License
 
 ## 👤 作者
 
-**风止 (snow)**
+**snowzlm**
 - GitHub: [@snowzlm](https://github.com/snowzlm)
 - Telegram: @mxsnow
 

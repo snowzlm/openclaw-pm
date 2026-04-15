@@ -49,7 +49,7 @@
     "backup",
     "restore"
   ],
-  "author": "风止 (snow) <mxsnow@example.com> (based on VA7's work)",
+  "author": "snowzlm (based on VA7's work)",
   "license": "MIT",
   "repository": {
     "type": "git",

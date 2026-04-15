@@ -126,4 +126,4 @@ v5.1.0 完全兼容 v5.0.0，无需手动迁移。
 **发布日期**: 2026-04-15  
 **发布类型**: 测试完善版本  
 **Git 提交**: 3e226a5  
-**GitHub**: https://github.com/风止 (snow)/openclaw-pm
+**GitHub**: https://github.com/snowzlm/openclaw-pm

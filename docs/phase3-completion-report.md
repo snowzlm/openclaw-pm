@@ -4,7 +4,7 @@
 - **版本**: v3.0.0
 - **阶段**: 阶段三 - 项目完善
 - **完成时间**: 2026-04-15
-- **GitHub**: https://github.com/风止 (snow)/openclaw-pm
+- **GitHub**: https://github.com/snowzlm/openclaw-pm
 - **提交**: 41d687e
 
 ---
@@ -91,7 +91,7 @@
 
 **更新内容**:
 - 版本号: `2.0.0` → `3.0.0`
-- 包名: `@1va7/openclaw-pm` → `@风止 (snow)/openclaw-pm`
+- 包名: `@1va7/openclaw-pm` → `@snowzlm/openclaw-pm`
 - 描述: 更新为 V3 跨平台优化版
 - 新增 npm scripts:
   - `npm run setup` - 运行配置向导
@@ -143,18 +143,18 @@
 ## 下载链接
 
 ### 官方链接
-- **GitHub 仓库**: https://github.com/风止 (snow)/openclaw-pm
-- **最新版本**: https://github.com/风止 (snow)/openclaw-pm/releases/latest
-- **直接下载**: https://github.com/风止 (snow)/openclaw-pm/archive/refs/heads/main.zip
+- **GitHub 仓库**: https://github.com/snowzlm/openclaw-pm
+- **最新版本**: https://github.com/snowzlm/openclaw-pm/releases/latest
+- **直接下载**: https://github.com/snowzlm/openclaw-pm/archive/refs/heads/main.zip
 
 ### 克隆命令
 ```bash
-git clone https://github.com/风止 (snow)/openclaw-pm.git
+git clone https://github.com/snowzlm/openclaw-pm.git
 ```
 
 ### 下载命令
 ```bash
-wget https://github.com/风止 (snow)/openclaw-pm/archive/refs/heads/main.zip
+wget https://github.com/snowzlm/openclaw-pm/archive/refs/heads/main.zip
 unzip main.zip
 cd openclaw-pm-main
 ```
@@ -165,14 +165,14 @@ cd openclaw-pm-main
 
 ### 方式一：Git Clone（推荐）
 ```bash
-git clone https://github.com/风止 (snow)/openclaw-pm.git
+git clone https://github.com/snowzlm/openclaw-pm.git
 cd openclaw-pm
 ./scripts/setup.sh
 ```
 
 ### 方式二：直接下载
 ```bash
-wget https://github.com/风止 (snow)/openclaw-pm/archive/refs/heads/main.zip
+wget https://github.com/snowzlm/openclaw-pm/archive/refs/heads/main.zip
 unzip main.zip
 cd openclaw-pm-main
 ./scripts/setup.sh
@@ -180,7 +180,7 @@ cd openclaw-pm-main
 
 ### 方式三：NPM（即将支持）
 ```bash
-npm install -g @风止 (snow)/openclaw-pm
+npm install -g @snowzlm/openclaw-pm
 openclaw-pm
 ```
 
@@ -294,6 +294,6 @@ OpenClaw PM v3.0.0 所有优化已完成：
 **阶段二**: 优化剩余脚本，统一架构
 **阶段三**: 完善项目文档，规范化开发流程
 
-项目已推送到 GitHub: https://github.com/风止 (snow)/openclaw-pm
+项目已推送到 GitHub: https://github.com/snowzlm/openclaw-pm
 
 所有优化点均基于实际需求，无捏造内容。
