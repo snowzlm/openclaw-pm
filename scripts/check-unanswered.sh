@@ -174,24 +174,55 @@ if $AUTO_RECOVER && [ ${#UNANSWERED_SESSIONS[@]} -gt 0 ]; then
         echo -e "${BLUE}正在发送恢复消息...${NC}"
     fi
     
+    local recovered=0
+    local failed=0
+    
     for session_key in "${UNANSWERED_SESSIONS[@]}"; do
         # 提取 agent 和 session
         local agent=$(echo "$session_key" | cut -d: -f2)
         local session=$(echo "$session_key" | cut -d: -f3)
         
-        # 发送恢复消息（通过 sessions_send）
-        # 注意：这需要 OpenClaw CLI 支持
         if ! $JSON_OUTPUT; then
             echo -e "  ${CYAN}→${NC} $session_key"
         fi
         
-        # 这里应该调用 OpenClaw API 发送消息
-        # 由于没有直接的 API，我们发送 wake 通知让 agent 处理
-        send_wake_notification "[未回复消息恢复] 检测到 session $session_key 有未回复的消息，请检查并回复" "now"
+        # 尝试使用 OpenClaw CLI 发送消息
+        if check_command "openclaw"; then
+            # 构造恢复消息
+            local recovery_msg="[自动恢复] 检测到有未回复的消息，正在处理..."
+            
+            # 尝试通过 OpenClaw CLI 发送（如果支持）
+            # 注意：这需要 OpenClaw 支持 sessions_send 命令
+            if openclaw sessions send --session "$session_key" --message "$recovery_msg" 2>/dev/null; then
+                ((recovered++))
+                if ! $JSON_OUTPUT; then
+                    echo -e "    ${GREEN}✓${NC} 已发送恢复消息"
+                fi
+            else
+                # 回退到 wake 通知
+                send_wake_notification "[未回复消息恢复] session $session_key 有未回复的消息" "now"
+                ((recovered++))
+                if ! $JSON_OUTPUT; then
+                    echo -e "    ${YELLOW}⚠${NC} 已发送 wake 通知（sessions_send 不可用）"
+                fi
+            fi
+        else
+            # OpenClaw CLI 不可用，使用 wake 通知
+            send_wake_notification "[未回复消息恢复] session $session_key 有未回复的消息" "now"
+            ((recovered++))
+            if ! $JSON_OUTPUT; then
+                echo -e "    ${YELLOW}⚠${NC} 已发送 wake 通知（openclaw CLI 不可用）"
+            fi
+        fi
     done
     
     if ! $JSON_OUTPUT; then
-        echo -e "${GREEN}✓ 已发送 ${#UNANSWERED_SESSIONS[@]} 条恢复通知${NC}"
+        if [ $recovered -gt 0 ]; then
+            echo -e "${GREEN}✓ 已处理 $recovered 个 session${NC}"
+        fi
+        if [ $failed -gt 0 ]; then
+            echo -e "${RED}✗ $failed 个 session 处理失败${NC}"
+        fi
     fi
 fi
 

@@ -287,6 +287,33 @@ vim scripts/config.json
 ./scripts/heartbeat-check.sh --json
 ```
 
+#### 8. health-history.sh
+**健康检查历史追踪**
+
+功能：
+- 记录每次健康检查结果
+- 查询历史记录
+- 统计分析（健康评分、平均错误数等）
+- 自动清理旧记录
+
+用法：
+```bash
+# 查看最近 7 天的历史
+./scripts/health-history.sh list
+
+# 查看最近 30 天的历史
+./scripts/health-history.sh list --days 30
+
+# 显示统计信息
+./scripts/health-history.sh stats
+
+# 清理 30 天前的记录
+./scripts/health-history.sh clean
+
+# JSON 格式输出
+./scripts/health-history.sh stats --json
+```
+
 ---
 
 ## 定时任务配置

@@ -168,10 +168,25 @@ check_thinking_only_sessions() {
                 if [ "$age_minutes" -gt 5 ]; then
                     log "Found thinking-only session (${age_minutes}min old): $session_file"
                     
-                    # 备份后删除最后一条消息
+                    # 备份原文件
                     create_backup "$session_file" "thinking-only" > /dev/null
-                    head -n -1 "$session_file" > "$session_file.tmp"
-                    mv "$session_file.tmp" "$session_file"
+                    
+                    # 标记为 incomplete 而非删除
+                    # 在消息中添加 _incomplete 标记
+                    local marked_msg=$(echo "$last_msg" | jq '. + {"_incomplete": true, "_marked_at": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"}' 2>/dev/null)
+                    
+                    if [ -n "$marked_msg" ]; then
+                        # 替换最后一行
+                        head -n -1 "$session_file" > "$session_file.tmp"
+                        echo "$marked_msg" >> "$session_file.tmp"
+                        mv "$session_file.tmp" "$session_file"
+                        log "Marked thinking-only message as incomplete (not deleted)"
+                    else
+                        # jq 失败，回退到删除方式
+                        log "Warning: jq not available, removing message instead"
+                        head -n -1 "$session_file" > "$session_file.tmp"
+                        mv "$session_file.tmp" "$session_file"
+                    fi
                     
                     fixed=1
                 fi
@@ -180,7 +195,7 @@ check_thinking_only_sessions() {
     done
     
     if [ $fixed -eq 1 ]; then
-        notify "info" "已清理 thinking-only session"
+        notify "info" "已标记 thinking-only session"
     fi
     
     return $fixed
@@ -337,6 +352,11 @@ main() {
     fi
     
     log "=== Health Check Completed ==="
+    
+    # 记录健康检查历史
+    if [ -f "$SCRIPT_DIR/health-history.sh" ]; then
+        "$SCRIPT_DIR/health-history.sh" record 2>/dev/null || true
+    fi
     
     # 清理旧备份（保留最近 10 个）
     cleanup_old_backups "*.lock" 10
