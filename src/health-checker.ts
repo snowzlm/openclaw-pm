@@ -125,8 +125,8 @@ export class GatewayHealthChecker {
    */
   private async checkSessions(): Promise<CheckResult> {
     try {
-      const openclawDir = this.config.get<string>('openclaw.dir');
-      const sessionsDir = path.join(openclawDir, 'sessions');
+      const sessionsDir = this.config.get<string>('openclaw.sessions_dir') || 
+                          path.join(this.config.get<string>('openclaw.dir'), 'sessions');
 
       if (!fs.existsSync(sessionsDir)) {
         return {
@@ -181,33 +181,175 @@ export class GatewayHealthChecker {
    * 检查队列
    */
   private async checkQueue(): Promise<CheckResult> {
-    // TODO: 实现队列检查逻辑
-    return {
-      status: 'ok',
-      message: '队列检查未实现',
-    };
+    try {
+      const openclawDir = this.config.get<string>('openclaw.dir');
+      const queueDir = path.join(openclawDir, 'queue');
+
+      if (!fs.existsSync(queueDir)) {
+        return {
+          status: 'ok',
+          message: '队列目录不存在（正常）',
+        };
+      }
+
+      const queueFiles = fs.readdirSync(queueDir).filter((f) => f.endsWith('.json'));
+      
+      if (queueFiles.length === 0) {
+        return {
+          status: 'ok',
+          message: '队列为空',
+        };
+      }
+
+      const maxQueueAge = this.config.get<number>('health_check.max_queue_age_hours', 2);
+      const staleThreshold = Date.now() - maxQueueAge * 60 * 60 * 1000;
+      let staleCount = 0;
+
+      for (const file of queueFiles) {
+        const filePath = path.join(queueDir, file);
+        const stats = fs.statSync(filePath);
+        
+        if (stats.mtimeMs < staleThreshold) {
+          staleCount++;
+        }
+      }
+
+      if (staleCount > 0) {
+        return {
+          status: 'warning',
+          message: `队列中有 ${staleCount} 个任务超过 ${maxQueueAge} 小时未处理`,
+          details: { total: queueFiles.length, stale: staleCount },
+        };
+      }
+
+      return {
+        status: 'ok',
+        message: `队列正常 (${queueFiles.length} 个任务)`,
+        details: { total: queueFiles.length },
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: `队列检查失败: ${(error as Error).message}`,
+      };
+    }
   }
 
   /**
    * 检查 Providers
    */
   private async checkProviders(): Promise<CheckResult> {
-    // TODO: 实现 Provider 错误检查
-    return {
-      status: 'ok',
-      message: 'Providers 检查未实现',
-    };
+    try {
+      const openclawDir = this.config.get<string>('openclaw.dir');
+      const logsDir = path.join(openclawDir, 'logs');
+      const gatewayLog = path.join(logsDir, 'gateway.log');
+
+      if (!fs.existsSync(gatewayLog)) {
+        return {
+          status: 'ok',
+          message: 'Gateway 日志不存在',
+        };
+      }
+
+      // 读取最近的日志（最后 1000 行）
+      const logContent = child_process
+        .execSync(`tail -n 1000 "${gatewayLog}"`, { encoding: 'utf-8' })
+        .trim();
+
+      // 统计 Provider 错误
+      const errorPatterns = [
+        /provider.*error/i,
+        /model.*failed/i,
+        /rate.*limit/i,
+        /timeout/i,
+        /connection.*refused/i,
+      ];
+
+      const errors: { [key: string]: number } = {};
+      const lines = logContent.split('\n');
+
+      for (const line of lines) {
+        for (const pattern of errorPatterns) {
+          if (pattern.test(line)) {
+            // 尝试提取 provider 名称
+            const providerMatch = line.match(/provider[:\s]+([\w-]+)/i);
+            const provider = providerMatch ? providerMatch[1] : 'unknown';
+            errors[provider] = (errors[provider] || 0) + 1;
+          }
+        }
+      }
+
+      const totalErrors = Object.values(errors).reduce((a, b) => a + b, 0);
+      const threshold = this.config.get<number>('health_check.provider_error_threshold', 10);
+
+      if (totalErrors > threshold) {
+        return {
+          status: 'warning',
+          message: `检测到 ${totalErrors} 个 Provider 错误（阈值: ${threshold}）`,
+          details: { errors, total: totalErrors },
+        };
+      }
+
+      if (totalErrors > 0) {
+        return {
+          status: 'ok',
+          message: `检测到 ${totalErrors} 个 Provider 错误（在阈值内）`,
+          details: { errors, total: totalErrors },
+        };
+      }
+
+      return {
+        status: 'ok',
+        message: 'Providers 运行正常',
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: `Providers 检查失败: ${(error as Error).message}`,
+      };
+    }
   }
 
   /**
    * 检查 Cron 任务
    */
   private async checkCron(): Promise<CheckResult> {
-    // TODO: 实现 Cron 任务检查
-    return {
-      status: 'ok',
-      message: 'Cron 检查未实现',
-    };
+    try {
+      // 从配置文件读取 Cron 任务（避免调用 CLI 超时）
+      const cronTasks = this.config.get<any[]>('cron_tasks', []);
+
+      if (cronTasks.length === 0) {
+        return {
+          status: 'ok',
+          message: '没有配置 Cron 任务',
+        };
+      }
+
+      const disabledTasks = cronTasks.filter((task) => !task.enabled);
+      const enabledTasks = cronTasks.filter((task) => task.enabled);
+
+      if (disabledTasks.length > 0) {
+        return {
+          status: 'warning',
+          message: `有 ${disabledTasks.length}/${cronTasks.length} 个 Cron 任务被禁用`,
+          details: { 
+            enabled: enabledTasks.map((t) => t.name),
+            disabled: disabledTasks.map((t) => t.name) 
+          },
+        };
+      }
+
+      return {
+        status: 'ok',
+        message: `${cronTasks.length} 个 Cron 任务已启用`,
+        details: { tasks: cronTasks.map((t) => t.name) },
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: `Cron 检查失败: ${(error as Error).message}`,
+      };
+    }
   }
 
   /**
@@ -229,7 +371,7 @@ export class GatewayHealthChecker {
    */
   private getGatewayProcesses(): number[] {
     try {
-      const result = child_process.execSync('pgrep -f "openclaw.*gateway"', {
+      const result = child_process.execSync('pgrep -f "^openclaw-gateway"', {
         encoding: 'utf-8',
       });
       return result
