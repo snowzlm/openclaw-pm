@@ -190,7 +190,7 @@ cp scripts/config.json.example scripts/config.json
 
 ---
 
-## 下一步计划
+## 历史后续规划（归档）
 
 ### v3.1.0
 - [ ] 添加健康检查历史追踪

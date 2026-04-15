@@ -286,7 +286,7 @@ openclaw-pm daily-stats
    openclaw-pm health
    ```
 
-**未来规划**：
+**历史规划记录**：
 - 如果需要实时告警 → 开发 v5.0.0 轻量版（<30MB）
 - 如果需要 Web 界面 → 考虑第三方工具（Grafana + Prometheus）
 - 如果需要深度集成 → 考虑 OpenClaw 插件方式
