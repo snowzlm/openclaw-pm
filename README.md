@@ -343,7 +343,6 @@ MIT License
 
 **snowzlm**
 - GitHub: [@snowzlm](https://github.com/snowzlm)
-- Telegram: @mxsnow
 
 ---
 
