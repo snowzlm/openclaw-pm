@@ -73,71 +73,18 @@ npm run cli check-unanswered
 
 ---
 
-## 📊 版本历史
+## 📌 当前版本亮点
 
-### v5.x (TypeScript 重构版)
+### v5.4.0（当前）
+- 整体覆盖率：**95.08%**
+- 测试：**88 passed**
+- 所有核心模块覆盖率达到 **80%+**
+- 默认 OpenClaw 目录改为**自动探测**
+- 发布口径已收紧，`coverage/` 不再进入仓库产物，`dist/tests` 不再进入构建输出
 
-#### v5.4.0 (2026-04-16) - 当前版本 🚀
-**全核心模块覆盖率达标 + 自动探测 OpenClaw 目录！**
-
-- 整体覆盖率: 83.13% → 95.08% (+11.95%)
-- cache-manager.ts: 96.49%
-- incremental-analyzer.ts: 97.5%
-- config.ts: 100%
-- 新增 16 个测试用例，总计 88 个全部通过
-- 默认 OpenClaw 目录改为自动探测，不再写死固定 root 用户路径
-
-#### v5.3.0 (2026-04-15)
-**测试覆盖率突破 80%！**
-
-- health-checker.ts: 41% → 94% (+53%)
-- 整体覆盖率: 65% → 83% (+18%)
-- 新增 26 个测试用例
-- 完整覆盖 Sessions/Queue/Providers/Cron 检查
-
-#### v5.2.0 (2026-04-15)
-**Logger 测试覆盖提升**
-
-- logger.ts: 48% → 80% (+32%)
-- 新增 17 个测试用例
-- 整体覆盖率: 61% → 65%
-
-#### v5.1.0 (2026-04-15)
-**测试套件完善**
-
-- 新增 config.test.ts 和 health-checker.test.ts
-- 修复所有 lint 错误
-- 集成 Husky + lint-staged
-
-#### v5.0.0 (2026-04-15)
-**性能优化 + 代码质量**
-
-- 日志索引、缓存管理、增量分析
-- Jest/ESLint/Prettier 集成
-- 终端图表渲染
-
-#### v4.x (2026-04-14)
-**TypeScript 核心架构**
-
-- 6 个核心模块 (config/logger/health-checker/backup/cache/incremental-analyzer)
-- CLI 命令行工具
-- 完整类型定义
-
-### v3.x (Bash 脚本版)
-
-#### v3.1.0
-- 健康检查历史追踪
-- thinking-only session 标记
-- 自动恢复优化
-
-#### v3.0.0
-- 配置文件系统
-- 统一工具库
-- 跨平台兼容
-
-### v2.x (原始版本)
-- 基于 @1va7/openclaw-pm v2.1.0
-- Bash 脚本实现
+历史版本、阶段性报告与归档说明，请看：
+- [CHANGELOG 主入口](CHANGELOG.md)
+- [v5.4.0 完成报告](docs/v5.4.0-complete-report.md)
 
 ---
 
