@@ -41,5 +41,9 @@
 ## 历史说明
 
 - 旧版 `CHANGELOG.md` 中的 v1/v2 内容已视为早期历史归档信息。
+- `CHANGELOG.md`：当前版本主入口。
+- `CHANGELOG-v*.md`：分版本摘要归档。
+- `docs/v*.md`：分版本完整报告。
+- `docs/phase*.md`：历史阶段归档。
 - 较早期版本的“下一步计划 / 短期 / 长期”表述，现已统一视为**历史规划记录**，不代表当前 roadmap。
 - 当前项目状态以 README、`CHANGELOG.md` 和最新完成报告为准。

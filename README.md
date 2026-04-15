@@ -13,6 +13,11 @@ OpenClaw 项目管理工具 - 健康检查、统计分析、备份恢复的 Type
 
 ## 📦 快速开始
 
+### 这是什么
+- 面向 OpenClaw 的项目管理/运维辅助工具
+- 提供健康检查、统计分析、备份恢复、未回复检测
+- 当前版本重点：**高覆盖率 + 自动探测 OpenClaw 目录 + 干净发布口径**
+
 ### 安装
 
 ```bash
@@ -90,36 +95,14 @@ npm run cli check-unanswered
 
 ## 🏗️ 架构设计
 
-### 核心模块
-
-```
-src/
-├── config.ts              # 配置管理器
-├── logger.ts              # 日志系统
-├── health-checker.ts      # 健康检查器
-├── backup.ts              # 备份管理器
-├── cache-manager.ts       # 缓存管理器
-├── incremental-analyzer.ts # 增量分析器
-├── stats-generator.ts     # 统计生成器
-├── unanswered-checker.ts  # 未回复检查器
-├── chart-renderer.ts      # 图表渲染器
-├── error-handler.ts       # 错误处理器
-├── config-initializer.ts  # 配置初始化器
-├── cli.ts                 # CLI 接口
-└── types.ts               # 类型定义
-```
-
-### 测试覆盖
-
-```
-tests/__tests__/
-├── cache-manager.test.ts
-├── config.test.ts
-├── health-checker.test.ts
-├── health-checker-detailed.test.ts
-├── incremental-analyzer.test.ts
-└── logger.test.ts
-```
+核心模块：
+- `config.ts` — 配置管理
+- `logger.ts` — 日志系统
+- `health-checker.ts` — 健康检查
+- `backup.ts` — 备份管理
+- `cache-manager.ts` / `incremental-analyzer.ts` — 性能优化核心
+- `stats-generator.ts` / `unanswered-checker.ts` — 统计与恢复能力
+- `cli.ts` — 命令行入口
 
 ---
 
@@ -218,20 +201,13 @@ npm test tests/__tests__/health-checker.test.ts
 
 ### 测试覆盖率
 
-```
-All files:
-  Statements: 95.08%
-  Branches:   78.42%
-  Functions:  98.7%
-  Lines:      96.28%
-
-核心模块:
-  health-checker.ts:       94.61%
-  logger.ts:               80%
-  config.ts:               100%
-  cache-manager.ts:        96.49%
-  incremental-analyzer.ts: 97.5%
-```
+- 整体：Statements **95.08%** / Branches **78.42%** / Functions **98.7%** / Lines **96.28%**
+- 核心模块：
+  - `health-checker.ts`: 94.61%
+  - `logger.ts`: 80%
+  - `config.ts`: 100%
+  - `cache-manager.ts`: 96.49%
+  - `incremental-analyzer.ts`: 97.5%
 
 ---
 
@@ -265,9 +241,13 @@ npm run type-check
 - [v5.4.0 完成报告](docs/v5.4.0-complete-report.md)
 - [安装说明](INSTALL.md)
 - [贡献指南](CONTRIBUTING.md)
-- [当前仓库说明](README.md)
 
-历史版本与归档文档保留在 `docs/` 与 `CHANGELOG-v*.md` 中。
+文档角色说明：
+- `CHANGELOG.md`：当前版本主入口
+- `CHANGELOG-v*.md`：分版本摘要归档
+- `docs/v*.md`：分版本完整报告
+- `docs/phase*.md`：历史阶段归档
+
 
 ---
 

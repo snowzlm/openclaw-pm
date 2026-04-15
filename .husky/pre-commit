@@ -1,2 +1,7 @@
 #!/usr/bin/env sh
+
+if ! git diff --cached --name-only --diff-filter=ACMR | grep -E '^src/.*\.ts$' >/dev/null 2>&1; then
+  exit 0
+fi
+
 npx lint-staged

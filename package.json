@@ -11,6 +11,7 @@
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "prepublishOnly": "npm run build",
+    "release:check": "npm test -- --runInBand && npm run build && npm pack --dry-run && git status --short",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
