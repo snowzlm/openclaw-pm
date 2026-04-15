@@ -29,9 +29,9 @@
 │                                                          │
 │  ┌──────────────────────────────────────────────────┐   │
 │  │  数据层                                           │   │
-│  │  - /root/.openclaw/agents/                       │   │
-│  │  - /root/.openclaw/sessions/                     │   │
-│  │  - /root/.openclaw/logs/                         │   │
+│  │  - ~/.openclaw/agents/                       │   │
+│  │  - ~/.openclaw/sessions/                     │   │
+│  │  - ~/.openclaw/logs/                         │   │
 │  └──────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
                           ↑
@@ -47,7 +47,7 @@
 │  │  - openclaw-pm heartbeat                         │   │
 │  └──────────────────────────────────────────────────┘   │
 │                                                          │
-│  读取数据 ← /root/.openclaw/                             │
+│  读取数据 ← ~/.openclaw/                             │
 │  不修改核心系统                                           │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -73,7 +73,7 @@ openclaw-pm  = 仪表盘（监控工具）
 **重要澄清**：openclaw-pm 的"插件系统"与 OpenClaw 的插件系统**完全不同**
 
 #### OpenClaw 插件系统（已存在）
-- **位置**: `/root/.openclaw/plugins/`
+- **位置**: `~/.openclaw/plugins/`
 - **功能**: 扩展 Gateway 功能（消息处理、工具集成）
 - **运行**: 常驻内存，随 Gateway 启动
 - **示例**: memory-core、device-pair 等
@@ -108,9 +108,9 @@ openclaw-pm  = 仪表盘（监控工具）
 │  openclaw-pm monitor (后台进程)                          │
 │  ┌──────────────────────────────────────────────────┐   │
 │  │  文件监控（inotify/fswatch）                      │   │
-│  │  - 监听 /root/.openclaw/logs/gateway.log         │   │
-│  │  - 监听 /root/.openclaw/sessions/*.jsonl         │   │
-│  │  - 监听 /root/.openclaw/tasks/*.json             │   │
+│  │  - 监听 ~/.openclaw/logs/gateway.log         │   │
+│  │  - 监听 ~/.openclaw/sessions/*.jsonl         │   │
+│  │  - 监听 ~/.openclaw/tasks/*.json             │   │
 │  └──────────────────────────────────────────────────┘   │
 │                                                          │
 │  ┌──────────────────────────────────────────────────┐   │
@@ -245,7 +245,7 @@ openclaw-pm daily-stats
 **实现方式**：
 ```bash
 # 将 openclaw-pm 作为 OpenClaw 插件
-/root/.openclaw/plugins/openclaw-pm/
+~/.openclaw/plugins/openclaw-pm/
 ```
 
 **优点**：
@@ -269,10 +269,10 @@ openclaw-pm daily-stats
 2. **使用 Cron 定期执行**
    ```bash
    # 每天早上 8:00 执行晨间简报
-   0 8 * * * cd /root/.openclaw/workspace/openclaw-pm && openclaw-pm morning-briefing
+   0 8 * * * cd ~/.openclaw/workspace/openclaw-pm && openclaw-pm morning-briefing
    
    # 每小时执行心跳检查
-   0 * * * * cd /root/.openclaw/workspace/openclaw-pm && openclaw-pm heartbeat
+   0 * * * * cd ~/.openclaw/workspace/openclaw-pm && openclaw-pm heartbeat
    ```
 
 3. **按需执行统计分析**

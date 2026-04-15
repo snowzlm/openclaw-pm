@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 /**
- * OpenClaw PM v4.2.0 - TypeScript Core
+ * OpenClaw PM v5.4.0 - TypeScript Core
  * 命令行接口
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -53,7 +53,7 @@ const chart_renderer_1 = require("./chart-renderer");
 const chalk_1 = __importDefault(require("chalk"));
 const fs = __importStar(require("fs"));
 const program = new commander_1.Command();
-program.name('openclaw-pm').description('OpenClaw 项目管理工具 v5.0.0').version('5.0.0');
+program.name('openclaw-pm').description('OpenClaw 项目管理工具 v5.4.0').version('5.4.0');
 // 全局选项
 program
     .option('-c, --config <path>', '配置文件路径')
@@ -145,9 +145,7 @@ program
     }
 });
 // 配置命令
-const configCmd = program
-    .command('config')
-    .description('配置管理');
+const configCmd = program.command('config').description('配置管理');
 configCmd
     .command('show')
     .description('显示当前配置')
@@ -417,7 +415,7 @@ function printDailyStats(stats, showChart = false) {
             const chartData = stats.hourlyDistribution.map((h) => ({
                 label: `${h.hour.toString().padStart(2, '0')}:00`,
                 value: h.count,
-                color: h.count > 10 ? 'green' : h.count > 5 ? 'yellow' : 'gray'
+                color: h.count > 10 ? 'green' : h.count > 5 ? 'yellow' : 'gray',
             }));
             console.log(chart_renderer_1.ChartRenderer.renderBarChart(chartData));
         }
@@ -442,8 +440,8 @@ function printDailyStats(stats, showChart = false) {
             const errorData = [
                 { label: 'Failover', value: stats.errors.failover, color: 'red' },
                 { label: 'Timeout', value: stats.errors.timeout, color: 'yellow' },
-                { label: 'Connection', value: stats.errors.connection, color: 'magenta' }
-            ].filter(e => e.value > 0);
+                { label: 'Connection', value: stats.errors.connection, color: 'magenta' },
+            ].filter((e) => e.value > 0);
             if (errorData.length > 0) {
                 console.log(chart_renderer_1.ChartRenderer.renderDistribution(errorData, '错误类型分布'));
             }
@@ -476,13 +474,14 @@ function printDailyStats(stats, showChart = false) {
         console.log(`  停止次数: ${stats.gateway.stops}`);
     console.log();
     // 频道统计
-    if (showChart && (stats.channels.telegram > 0 || stats.channels.discord > 0 || stats.channels.slack > 0)) {
+    if (showChart &&
+        (stats.channels.telegram > 0 || stats.channels.discord > 0 || stats.channels.slack > 0)) {
         const channelData = [
             { label: 'Telegram', value: stats.channels.telegram, color: 'blue' },
             { label: 'Discord', value: stats.channels.discord, color: 'cyan' },
             { label: 'Slack', value: stats.channels.slack, color: 'green' },
-            { label: 'Other', value: stats.channels.other, color: 'gray' }
-        ].filter(c => c.value > 0);
+            { label: 'Other', value: stats.channels.other, color: 'gray' },
+        ].filter((c) => c.value > 0);
         console.log(chart_renderer_1.ChartRenderer.renderDistribution(channelData, '📡 频道分布'));
         console.log();
     }

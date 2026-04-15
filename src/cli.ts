@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * OpenClaw PM v4.2.0 - TypeScript Core
+ * OpenClaw PM v5.4.0 - TypeScript Core
  * 命令行接口
  */
 
@@ -18,7 +18,7 @@ import * as fs from 'fs';
 
 const program = new Command();
 
-program.name('openclaw-pm').description('OpenClaw 项目管理工具 v5.0.0').version('5.0.0');
+program.name('openclaw-pm').description('OpenClaw 项目管理工具 v5.4.0').version('5.4.0');
 
 // 全局选项
 program

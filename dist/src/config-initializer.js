@@ -163,12 +163,10 @@ class ConfigInitializer {
             if (!openclaw.dir || typeof openclaw.dir !== 'string') {
                 errors.push('openclaw.dir 必须是字符串');
             }
-            if (!openclaw.sessions_dir ||
-                typeof openclaw.sessions_dir !== 'string') {
+            if (!openclaw.sessions_dir || typeof openclaw.sessions_dir !== 'string') {
                 errors.push('openclaw.sessions_dir 必须是字符串');
             }
-            if (!openclaw.gateway_port ||
-                typeof openclaw.gateway_port !== 'number') {
+            if (!openclaw.gateway_port || typeof openclaw.gateway_port !== 'number') {
                 errors.push('openclaw.gateway_port 必须是数字');
             }
         }
@@ -184,8 +182,7 @@ class ConfigInitializer {
             if (!backup.dir || typeof backup.dir !== 'string') {
                 errors.push('backup.dir 必须是字符串');
             }
-            if (!backup.max_backups ||
-                typeof backup.max_backups !== 'number') {
+            if (!backup.max_backups || typeof backup.max_backups !== 'number') {
                 errors.push('backup.max_backups 必须是数字');
             }
         }
@@ -203,8 +200,7 @@ class ConfigInitializer {
         const mergeDeep = (target, source) => {
             const result = { ...target };
             for (const key in source) {
-                if (typeof source[key] === 'object' &&
-                    !Array.isArray(source[key])) {
+                if (typeof source[key] === 'object' && !Array.isArray(source[key])) {
                     result[key] = mergeDeep(result[key] || {}, source[key]);
                 }
                 else if (result[key] === undefined) {

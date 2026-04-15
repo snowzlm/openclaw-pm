@@ -2,10 +2,10 @@
 
 OpenClaw 项目管理工具 - 健康检查、统计分析、备份恢复的 TypeScript 工具集。
 
-> 当前版本: **v5.3.0** (TypeScript 重构版)
+> 当前版本: **v5.4.0** (TypeScript 重构版)
 
-[![测试覆盖率](https://img.shields.io/badge/coverage-83%25-brightgreen.svg)](https://github.com/snowzlm/openclaw-pm)
-[![测试通过](https://img.shields.io/badge/tests-72%20passed-brightgreen.svg)](https://github.com/snowzlm/openclaw-pm)
+[![测试覆盖率](https://img.shields.io/badge/coverage-95.08%25-brightgreen.svg)](https://github.com/snowzlm/openclaw-pm)
+[![测试通过](https://img.shields.io/badge/tests-88%20passed-brightgreen.svg)](https://github.com/snowzlm/openclaw-pm)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0.2-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
 
@@ -66,7 +66,7 @@ npm run cli check-unanswered
 ### 技术特性
 
 - ✅ **TypeScript**: 类型安全、代码提示
-- ✅ **高测试覆盖**: 83% 整体覆盖率、72 个测试用例
+- ✅ **高测试覆盖**: 95.08% 整体覆盖率、88 个测试用例
 - ✅ **并发优化**: Promise.all 并发执行检查
 - ✅ **增量分析**: 日志增量读取、缓存管理
 - ✅ **跨平台**: Linux、macOS 支持
@@ -77,7 +77,17 @@ npm run cli check-unanswered
 
 ### v5.x (TypeScript 重构版)
 
-#### v5.3.0 (2026-04-15) - 当前版本 🎉
+#### v5.4.0 (2026-04-16) - 当前版本 🚀
+**全核心模块覆盖率达标 + 自动探测 OpenClaw 目录！**
+
+- 整体覆盖率: 83.13% → 95.08% (+11.95%)
+- cache-manager.ts: 96.49%
+- incremental-analyzer.ts: 97.5%
+- config.ts: 100%
+- 新增 16 个测试用例，总计 88 个全部通过
+- 默认 OpenClaw 目录改为自动探测，不再写死固定 root 用户路径
+
+#### v5.3.0 (2026-04-15)
 **测试覆盖率突破 80%！**
 
 - health-checker.ts: 41% → 94% (+53%)
@@ -263,17 +273,17 @@ npm test tests/__tests__/health-checker.test.ts
 
 ```
 All files:
-  Statements: 83.13%
-  Branches:   72.05%
-  Functions:  89.85%
-  Lines:      83.99%
+  Statements: 95.08%
+  Branches:   78.42%
+  Functions:  98.7%
+  Lines:      96.28%
 
 核心模块:
   health-checker.ts:       94.61%
   logger.ts:               80%
-  config.ts:               78.72%
-  cache-manager.ts:        78.94%
-  incremental-analyzer.ts: 74.16%
+  config.ts:               100%
+  cache-manager.ts:        96.49%
+  incremental-analyzer.ts: 97.5%
 ```
 
 ---
@@ -303,7 +313,8 @@ npm run type-check
 
 ## 📝 文档
 
-- [完整变更日志](CHANGELOG-v5.3.md)
+- [完整变更日志](CHANGELOG-v5.4.md)
+- [v5.4.0 完成报告](docs/v5.4.0-complete-report.md)
 - [v5.3.0 完成报告](docs/v5.3.0-complete-report.md)
 - [v5.2.0 完成报告](docs/v5.2.0-complete-report.md)
 - [v5.1.0 完成报告](docs/v5.1.0-complete-report.md)
@@ -357,11 +368,11 @@ MIT License
 
 - ✅ 生产就绪
 - ✅ 活跃维护
-- ✅ 测试覆盖 >80%
+- ✅ 测试覆盖 >95%
 - ✅ TypeScript 类型安全
 
 ---
 
-**最后更新**: 2026-04-15  
-**当前版本**: v5.3.0  
+**最后更新**: 2026-04-16  
+**当前版本**: v5.4.0  
 **下载链接**: https://github.com/snowzlm/openclaw-pm

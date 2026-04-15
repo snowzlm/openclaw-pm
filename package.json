@@ -1,7 +1,7 @@
 {
   "name": "@snowzlm/openclaw-pm",
-  "version": "5.3.0",
-  "description": "OpenClaw 项目管理工具 v5.3.0 - TypeScript 重构版，健康检查、统计分析、备份恢复",
+  "version": "5.4.0",
+  "description": "OpenClaw 项目管理工具 v5.4.0 - TypeScript 重构版，健康检查、统计分析、备份恢复",
   "main": "dist/cli.js",
   "bin": {
     "openclaw-pm": "./dist/cli.js"
@@ -64,7 +64,7 @@
     "scripts/",
     "docs/",
     "README.md",
-    "CHANGELOG-v4.md"
+    "CHANGELOG-v5.4.md"
   ],
   "engines": {
     "node": ">=14.0.0"
