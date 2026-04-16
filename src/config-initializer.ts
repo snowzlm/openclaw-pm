@@ -3,7 +3,13 @@ import * as path from 'path';
 import * as readline from 'readline';
 import chalk from 'chalk';
 import { Logger } from './logger';
-import { detectOpenClawDir, getDefaultSessionsDir, getDefaultBackupDir } from './config';
+import {
+  detectOpenClawDir,
+  getDefaultSessionsDir,
+  getDefaultBackupDir,
+  getDefaultWorkspaceDir,
+  OpenClawConfig,
+} from './config';
 
 export interface ConfigInitOptions {
   interactive?: boolean;
@@ -29,7 +35,7 @@ export class ConfigInitializer {
       return;
     }
 
-    let config: Record<string, unknown>;
+    let config: OpenClawConfig;
 
     if (options.interactive) {
       config = await this.interactiveConfig();
@@ -38,6 +44,7 @@ export class ConfigInitializer {
     }
 
     // 写入配置文件
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
     console.log(chalk.green('✓ 配置文件已创建'));
@@ -48,7 +55,7 @@ export class ConfigInitializer {
   /**
    * 交互式配置
    */
-  private async interactiveConfig(): Promise<Record<string, unknown>> {
+  private async interactiveConfig(): Promise<OpenClawConfig> {
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -83,55 +90,67 @@ export class ConfigInitializer {
 
     rl.close();
 
-    return {
-      openclaw: {
-        dir: openclawDir || detectedOpenClawDir,
-        sessions_dir: sessionsDir || detectedSessionsDir,
-        gateway_port: parseInt(gatewayPort) || 3000,
-      },
-      backup: {
-        enabled: true,
-        dir: backupDir || detectedBackupDir,
-        max_backups: parseInt(maxBackups) || 10,
-      },
-      health: {
-        check_interval: 300,
-        max_retries: 3,
-      },
-      cron_tasks: [
-        { name: 'backup', enabled: true },
-        { name: 'cleanup', enabled: true },
-        { name: 'health-check', enabled: true },
-        { name: 'monitor', enabled: true },
-      ],
-    };
+    return this.buildConfig(
+      openclawDir || detectedOpenClawDir,
+      sessionsDir || detectedSessionsDir,
+      backupDir || detectedBackupDir,
+      parseInt(gatewayPort) || 3000,
+      parseInt(maxBackups) || 10
+    );
   }
 
   /**
    * 获取默认配置
    */
-  private getDefaultConfig(): Record<string, unknown> {
+  private getDefaultConfig(): OpenClawConfig {
     const openclawDir = detectOpenClawDir();
+    return this.buildConfig(
+      openclawDir,
+      getDefaultSessionsDir(openclawDir),
+      getDefaultBackupDir(openclawDir),
+      3000,
+      10
+    );
+  }
+
+  private buildConfig(
+    openclawDir: string,
+    sessionsDir: string,
+    backupDir: string,
+    gatewayPort: number,
+    maxBackups: number
+  ): OpenClawConfig {
     return {
       openclaw: {
         dir: openclawDir,
-        sessions_dir: getDefaultSessionsDir(openclawDir),
-        gateway_port: 3000,
+        sessions_dir: sessionsDir,
+        queue_dir: path.join(openclawDir, 'queue'),
+        logs_dir: path.join(openclawDir, 'logs'),
+        workspace_dir: getDefaultWorkspaceDir(openclawDir),
+        gateway_port: gatewayPort,
+        gateway_timeout: 30,
+      },
+      health_check: {
+        interval_minutes: 5,
+        max_lock_age_hours: 1,
+        max_queue_age_hours: 2,
+        provider_error_threshold: 10,
       },
       backup: {
         enabled: true,
-        dir: getDefaultBackupDir(openclawDir),
-        max_backups: 10,
+        max_backups: maxBackups,
+        backup_dir: backupDir,
+        dir: backupDir,
       },
-      health: {
-        check_interval: 300,
-        max_retries: 3,
+      notification: {
+        enabled: false,
+        channels: [],
       },
       cron_tasks: [
-        { name: 'backup', enabled: true },
-        { name: 'cleanup', enabled: true },
-        { name: 'health-check', enabled: true },
-        { name: 'monitor', enabled: true },
+        { name: 'gateway-health-check', schedule: '*/5 * * * *', enabled: true },
+        { name: 'check-unanswered', schedule: '*/15 * * * *', enabled: true },
+        { name: 'morning-briefing', schedule: '0 9 * * *', enabled: true },
+        { name: 'daily-stats', schedule: '0 23 * * *', enabled: true },
       ],
     };
   }
@@ -162,6 +181,14 @@ export class ConfigInitializer {
       if (!openclaw.gateway_port || typeof openclaw.gateway_port !== 'number') {
         errors.push('openclaw.gateway_port 必须是数字');
       }
+
+      if (typeof openclaw.gateway_timeout !== 'number') {
+        errors.push('openclaw.gateway_timeout 必须是数字');
+      }
+    }
+
+    if (!config.health_check || typeof config.health_check !== 'object') {
+      errors.push('缺少 health_check 配置');
     }
 
     // 验证 backup 配置
@@ -174,8 +201,8 @@ export class ConfigInitializer {
         errors.push('backup.enabled 必须是布尔值');
       }
 
-      if (!backup.dir || typeof backup.dir !== 'string') {
-        errors.push('backup.dir 必须是字符串');
+      if (!backup.backup_dir && !backup.dir) {
+        errors.push('backup.backup_dir 必须是字符串');
       }
 
       if (!backup.max_backups || typeof backup.max_backups !== 'number') {
@@ -192,14 +219,11 @@ export class ConfigInitializer {
   /**
    * 修复配置
    */
-  repairConfig(config: Record<string, unknown>): Record<string, unknown> {
+  repairConfig(config: Record<string, unknown>): OpenClawConfig {
     const defaultConfig = this.getDefaultConfig();
 
     // 深度合并配置
-    const mergeDeep = (
-      target: Record<string, unknown>,
-      source: Record<string, unknown>
-    ): Record<string, unknown> => {
+    const mergeDeep = (target: any, source: any): any => {
       const result = { ...target };
 
       for (const key in source) {
@@ -216,13 +240,13 @@ export class ConfigInitializer {
       return result;
     };
 
-    return mergeDeep(config, defaultConfig);
+    return mergeDeep(config, defaultConfig) as OpenClawConfig;
   }
 
   /**
    * 自动检测配置
    */
-  autoDetectConfig(): Record<string, unknown> {
+  autoDetectConfig(): OpenClawConfig {
     const openclawDir = detectOpenClawDir();
 
     // 检测 sessions 目录
@@ -242,27 +266,6 @@ export class ConfigInitializer {
       }
     }
 
-    return {
-      openclaw: {
-        dir: openclawDir,
-        sessions_dir: sessionsDir,
-        gateway_port: 3000,
-      },
-      backup: {
-        enabled: true,
-        dir: getDefaultBackupDir(openclawDir),
-        max_backups: 10,
-      },
-      health: {
-        check_interval: 300,
-        max_retries: 3,
-      },
-      cron_tasks: [
-        { name: 'backup', enabled: true },
-        { name: 'cleanup', enabled: true },
-        { name: 'health-check', enabled: true },
-        { name: 'monitor', enabled: true },
-      ],
-    };
+    return this.buildConfig(openclawDir, sessionsDir, getDefaultBackupDir(openclawDir), 3000, 10);
   }
 }
