@@ -178,6 +178,18 @@ export class ConfigInitializer {
         errors.push('openclaw.sessions_dir 必须是字符串');
       }
 
+      if (!openclaw.queue_dir || typeof openclaw.queue_dir !== 'string') {
+        errors.push('openclaw.queue_dir 必须是字符串');
+      }
+
+      if (!openclaw.logs_dir || typeof openclaw.logs_dir !== 'string') {
+        errors.push('openclaw.logs_dir 必须是字符串');
+      }
+
+      if (!openclaw.workspace_dir || typeof openclaw.workspace_dir !== 'string') {
+        errors.push('openclaw.workspace_dir 必须是字符串');
+      }
+
       if (!openclaw.gateway_port || typeof openclaw.gateway_port !== 'number') {
         errors.push('openclaw.gateway_port 必须是数字');
       }
@@ -189,6 +201,24 @@ export class ConfigInitializer {
 
     if (!config.health_check || typeof config.health_check !== 'object') {
       errors.push('缺少 health_check 配置');
+    } else {
+      const healthCheck = config.health_check as Record<string, unknown>;
+
+      if (typeof healthCheck.interval_minutes !== 'number') {
+        errors.push('health_check.interval_minutes 必须是数字');
+      }
+
+      if (typeof healthCheck.max_lock_age_hours !== 'number') {
+        errors.push('health_check.max_lock_age_hours 必须是数字');
+      }
+
+      if (typeof healthCheck.max_queue_age_hours !== 'number') {
+        errors.push('health_check.max_queue_age_hours 必须是数字');
+      }
+
+      if (typeof healthCheck.provider_error_threshold !== 'number') {
+        errors.push('health_check.provider_error_threshold 必须是数字');
+      }
     }
 
     // 验证 backup 配置
@@ -201,13 +231,35 @@ export class ConfigInitializer {
         errors.push('backup.enabled 必须是布尔值');
       }
 
-      if (!backup.backup_dir && !backup.dir) {
+      const backupDir = backup.backup_dir ?? backup.dir;
+      if (!backupDir || typeof backupDir !== 'string') {
         errors.push('backup.backup_dir 必须是字符串');
       }
 
       if (!backup.max_backups || typeof backup.max_backups !== 'number') {
         errors.push('backup.max_backups 必须是数字');
       }
+    }
+
+    if (!config.notification || typeof config.notification !== 'object') {
+      errors.push('缺少 notification 配置');
+    }
+
+    if (!Array.isArray(config.cron_tasks)) {
+      errors.push('cron_tasks 必须是数组');
+    } else {
+      config.cron_tasks.forEach((task, index) => {
+        const cronTask = task as Record<string, unknown>;
+        if (typeof cronTask.name !== 'string') {
+          errors.push(`cron_tasks[${index}].name 必须是字符串`);
+        }
+        if (typeof cronTask.schedule !== 'string') {
+          errors.push(`cron_tasks[${index}].schedule 必须是字符串`);
+        }
+        if (typeof cronTask.enabled !== 'boolean') {
+          errors.push(`cron_tasks[${index}].enabled 必须是布尔值`);
+        }
+      });
     }
 
     return {
