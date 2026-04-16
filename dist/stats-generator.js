@@ -254,17 +254,17 @@ class StatsGenerator {
         catch {
             // Gateway 未运行
         }
-        // 检查 lock 文件
+        // 检查过期 lock 文件（默认只提示 5 分钟以上未更新的锁）
         let lockFiles = 0;
         try {
             const { execSync } = child_process;
-            const result = execSync(`find ${openclawDir}/agents/*/sessions/*.lock 2>/dev/null | wc -l`, {
+            const result = execSync(`find ${openclawDir}/agents -name '*.lock' -type f -mmin +5 2>/dev/null | wc -l`, {
                 encoding: 'utf-8',
             }).trim();
             lockFiles = parseInt(result, 10) || 0;
         }
         catch {
-            // 无 lock 文件
+            // 无过期 lock 文件
         }
         // 检查磁盘使用率
         let diskUsage;
@@ -350,7 +350,7 @@ class StatsGenerator {
             suggestions.push('启动 Gateway: openclaw gateway start');
         }
         if (system.lockFiles > 0) {
-            suggestions.push(`清理 ${system.lockFiles} 个 Lock 文件: openclaw-pm health`);
+            suggestions.push(`清理 ${system.lockFiles} 个过期 Lock 文件: openclaw-pm health`);
         }
         if (system.diskUsage && system.diskUsage > 80) {
             suggestions.push(`磁盘使用率 ${system.diskUsage}%，建议清理日志`);

@@ -508,10 +508,10 @@ function printMorningBriefing(briefing) {
         console.log(chalk_1.default.red('  ✗ Gateway 未运行'));
     }
     if (briefing.system.lockFiles === 0) {
-        console.log(chalk_1.default.green('  ✓ 无 session lock 文件'));
+        console.log(chalk_1.default.green('  ✓ 无过期 session lock 文件'));
     }
     else {
-        console.log(chalk_1.default.yellow(`  ⚠ ${briefing.system.lockFiles} 个 session lock 文件`));
+        console.log(chalk_1.default.yellow(`  ⚠ ${briefing.system.lockFiles} 个过期 session lock 文件`));
     }
     if (briefing.system.diskUsage) {
         const diskColor = briefing.system.diskUsage > 80 ? chalk_1.default.yellow : chalk_1.default.green;

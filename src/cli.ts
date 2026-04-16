@@ -525,9 +525,9 @@ function printMorningBriefing(briefing: any): void {
     console.log(chalk.red('  ✗ Gateway 未运行'));
   }
   if (briefing.system.lockFiles === 0) {
-    console.log(chalk.green('  ✓ 无 session lock 文件'));
+    console.log(chalk.green('  ✓ 无过期 session lock 文件'));
   } else {
-    console.log(chalk.yellow(`  ⚠ ${briefing.system.lockFiles} 个 session lock 文件`));
+    console.log(chalk.yellow(`  ⚠ ${briefing.system.lockFiles} 个过期 session lock 文件`));
   }
   if (briefing.system.diskUsage) {
     const diskColor = briefing.system.diskUsage > 80 ? chalk.yellow : chalk.green;
