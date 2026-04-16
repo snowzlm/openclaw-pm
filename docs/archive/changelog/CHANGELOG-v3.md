@@ -26,7 +26,7 @@
 
 ### 文档
 - 更新 README.md 添加 `health-history.sh` 使用说明
-- 更新 CHANGELOG-v3.md
+- 更新 docs/archive/changelog/CHANGELOG-v3.md
 
 ---
 

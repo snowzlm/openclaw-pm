@@ -100,7 +100,7 @@
 
 ### 7. 文档更新
 **文件**:
-- `CHANGELOG-v3.md` - 详细变更日志
+- `docs/archive/changelog/CHANGELOG-v3.md` - 详细变更日志
 - `README.md` - 更新使用说明和快速开始指南
 
 **影响**: 用户可以快速了解 v3 的新功能和迁移方法
@@ -236,7 +236,7 @@ Date:   2026-04-15
     - 需要 config.json 配置文件
     - Cron 任务列表从硬编码改为配置文件
     
-    详见 CHANGELOG-v3.md
+    详见 docs/archive/changelog/CHANGELOG-v3.md
 ```
 
 ---

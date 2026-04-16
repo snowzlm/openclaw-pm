@@ -258,7 +258,7 @@ find scripts -name "*.sh" -exec shellcheck {} \;
 文档位于：
 - `README.md` - 主文档
 - `INSTALL.md` - 安装指南
-- `CHANGELOG-v3.md` - 变更日志
+- `docs/archive/changelog/CHANGELOG-v3.md` - 变更日志
 - `docs/` - 详细文档
 
 ---
@@ -283,7 +283,7 @@ find scripts -name "*.sh" -exec shellcheck {} \;
 vim package.json  # 修改 version
 
 # 2. 更新 CHANGELOG
-vim CHANGELOG-v3.md
+vim docs/archive/changelog/CHANGELOG-v3.md
 
 # 3. 提交
 git add .

@@ -15,26 +15,26 @@
 - README、发布文档、历史 docs 口径统一清理
 
 #### 详细记录
-- [CHANGELOG-v5.4.md](CHANGELOG-v5.4.md)
+- [docs/archive/changelog/CHANGELOG-v5.4.md](docs/archive/changelog/CHANGELOG-v5.4.md)
 - [docs/v5.4.0-complete-report.md](docs/v5.4.0-complete-report.md)
 
 ---
 
 ## v5 系列归档
 
-- [CHANGELOG-v5.4.md](CHANGELOG-v5.4.md) — v5.4.0 覆盖率强化 + 路径自动探测优化
-- [CHANGELOG-v5.3.md](CHANGELOG-v5.3.md) — v5.3.0 覆盖率突破 80%
-- [CHANGELOG-v5.2.md](CHANGELOG-v5.2.md) — v5.2.0 Logger 测试覆盖提升
-- [CHANGELOG-v5.1.md](CHANGELOG-v5.1.md) — v5.1.0 测试套件完善
-- [CHANGELOG-v5.md](CHANGELOG-v5.md) — v5.0.0 性能优化与代码质量提升
+- [docs/archive/changelog/CHANGELOG-v5.4.md](docs/archive/changelog/CHANGELOG-v5.4.md) — v5.4.0 覆盖率强化 + 路径自动探测优化
+- [docs/archive/changelog/CHANGELOG-v5.3.md](docs/archive/changelog/CHANGELOG-v5.3.md) — v5.3.0 覆盖率突破 80%
+- [docs/archive/changelog/CHANGELOG-v5.2.md](docs/archive/changelog/CHANGELOG-v5.2.md) — v5.2.0 Logger 测试覆盖提升
+- [docs/archive/changelog/CHANGELOG-v5.1.md](docs/archive/changelog/CHANGELOG-v5.1.md) — v5.1.0 测试套件完善
+- [docs/archive/changelog/CHANGELOG-v5.md](docs/archive/changelog/CHANGELOG-v5.md) — v5.0.0 性能优化与代码质量提升
 
 ## v4 系列归档
 
-- [CHANGELOG-v4.md](CHANGELOG-v4.md)
+- [docs/archive/changelog/CHANGELOG-v4.md](docs/archive/changelog/CHANGELOG-v4.md)
 
 ## v3 系列归档
 
-- [CHANGELOG-v3.md](CHANGELOG-v3.md)
+- [docs/archive/changelog/CHANGELOG-v3.md](docs/archive/changelog/CHANGELOG-v3.md)
 
 ---
 

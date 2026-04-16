@@ -111,7 +111,7 @@ Coverage:
 ### 📝 文档
 
 - 新增 `docs/v5.3.0-complete-report.md` - 完整发布报告
-- 新增 `CHANGELOG-v5.3.md` - 版本变更日志
+- 新增 `docs/archive/changelog/CHANGELOG-v5.3.md` - 版本变更日志
 
 ### ⚠️ 已知问题
 

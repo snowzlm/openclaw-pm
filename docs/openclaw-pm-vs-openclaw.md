@@ -1,6 +1,6 @@
 # OpenClaw PM 与 OpenClaw 的关系分析
 
-> 历史说明：本文形成于早期版本规划阶段，包含当时对 v4.x / v5.0.0 方向的讨论，主要用于保留设计背景；当前实际状态请以 README、CHANGELOG-v5.4.md 与 docs/v5.4.0-complete-report.md 为准。
+> 历史说明：本文形成于早期版本规划阶段，包含当时对 v4.x / v5.0.0 方向的讨论，主要用于保留设计背景；当前实际状态请以 README、CHANGELOG.md 与 docs/v5.4.0-complete-report.md 为准。
 
 ## 📊 定位对比
 

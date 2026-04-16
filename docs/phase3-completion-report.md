@@ -196,7 +196,7 @@ openclaw-pm/
 ├── INSTALL.md              # 安装指南
 ├── CONTRIBUTING.md         # 贡献指南
 ├── CHANGELOG.md            # V1/V2 变更日志
-├── CHANGELOG-v3.md         # V3 变更日志
+├── docs/archive/changelog/CHANGELOG-v3.md         # V3 变更日志
 ├── package.json            # NPM 包信息
 ├── index.js                # NPM 入口
 ├── config/                 # 配置升级指南
